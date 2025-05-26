@@ -14,6 +14,9 @@ class Aluno extends Model
     protected $table = 'tb_aluno';
     protected $primaryKey = 'id';
 
+    const CREATED_AT = 'dt_insert'; // Informa ao Eloquent para usar 'dt_insert' como campo de criação
+    const UPDATED_AT = null;       // Informa ao Eloquent que não há campo de atualização para gerenciar
+
     protected $fillable = [
         'fk_escolas',
         'fk_series',

@@ -4,35 +4,37 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-// REMOVA a linha abaixo se existir: use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Cadastro extends Model
 {
     use HasFactory;
-    // REMOVA a linha abaixo se existir: use SoftDeletes;
 
     protected $table = 'tb_cadastro';
-    protected $primaryKey = 'id';
+    protected $primaryKey = 'id'; // Já deve estar assim por padrão
+
+    // Define as colunas de timestamp personalizadas
+    const CREATED_AT = 'dt_insert';
+    const UPDATED_AT = 'dt_update';
 
     protected $fillable = [
-        'codigo',
-        'data_cadastro',
-        'fk_atendente',
-        'fk_responsavel', // O responsável principal (FK para tb_responsavel.id)
-        'fk_origens',
+        'fk_indique',       // Certifique-se que todos estes campos são realmente 'fillable'
+        'fk_responsavel',
+        'atendente',        // Esta é a sua chave estrangeira para users (o atendente que cadastrou)
         'fk_situacao',
-        'observacoes',
-        'status', // Mantenha 'status' aqui
+        'fk_origens',
+        'forma_contato',
+        'codigo',
+        'dt_agenda',
+        'dt_retorno',
+        'horario_agenda',
+        'campanha_atual',
+        'sms_cobranca',
+        'sms_lembrete',
+        'sms_pesquisa',
+        'status',
+        // 'observacoes' foi removido daqui
+        // 'dt_insert' e 'dt_update' serão gerenciados pelo Eloquent
     ];
-
-    // REMOVA a linha abaixo se existir: protected $dates = ['deleted_at'];
-
-    // Relacionamentos
-    public function atendente()
-    {
-        // ATUALIZADO: Relacionamento com o modelo User (tabela 'users')
-        return $this->belongsTo(User::class, 'fk_atendente', 'id');
-    }
 
     public function responsavel()
     {
@@ -45,7 +47,6 @@ class Cadastro extends Model
     {
         // Relacionamento com todos os responsáveis associados a este cadastro (tb_responsavel_has_tb_cadastro)
         return $this->belongsToMany(Responsavel::class, 'tb_responsavel_has_tb_cadastro', 'fk_cadastro', 'fk_responsavel')
-            ->wherePivot('status', 1) // Garante que apenas relações ativas são carregadas
             ->where('tb_responsavel.status', 1); // Garante que apenas responsáveis ativos são carregados
     }
 
@@ -75,22 +76,35 @@ class Cadastro extends Model
         // Por enquanto, o hasManyThrough para o RESPONSAVEL PRINCIPAL pode ser o suficiente para o 'details'.
         // Para a exibição dos detalhes do DataTables, você carregou os alunos através da relação do 'Cadastro' com 'Responsavel' e 'Responsavel.alunos'. Isso está ok.
     }
-
-
-    public function origem()
+    // Relação com Atendente (User)
+    public function atendente() // Nome corrigido da relação (era atendenteRelacao no log)
     {
-        return $this->belongsTo(Origem::class, 'fk_origens');
-    }
-
-    public function situacao()
-    {
-        return $this->belongsTo(Situacao::class, 'fk_situacao');
+        // A coluna 'atendente' na tb_cadastro é a FK para users.id
+        return $this->belongsTo(User::class, 'atendente', 'id');
     }
 
     // Relação com todos os responsáveis associados (muitos para muitos)
     public function responsaveisPivot()
     {
         return $this->belongsToMany(Responsavel::class, 'tb_responsavel_has_tb_cadastro', 'fk_cadastro', 'fk_responsavel');
+    }
+
+    // Relação com Origem
+    public function origem()
+    {
+        return $this->belongsTo(Origem::class, 'fk_origens');
+    }
+
+    // Relação com Situação
+    public function situacao()
+    {
+        return $this->belongsTo(Situacao::class, 'fk_situacao');
+    }
+
+    // Relação com Observacoes
+    public function observacoes()
+    {
+        return $this->hasMany(Observacao::class, 'fk_cadastro', 'id')->orderBy('dt_insert', 'desc'); // Ordena da mais recente para a mais antiga
     }
 
     // Se você quiser um escopo global para apenas cadastros ativos por padrão

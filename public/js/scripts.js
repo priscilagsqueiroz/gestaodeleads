@@ -130,7 +130,10 @@ $(document).ready(function () {
     let studentCounter = 0;
 
     function addResponsibleCard(containerId, responsibleData = {}, isEditMode = false) {
-        const responsibleId = isEditMode && responsibleData.id ? responsibleData.id : 'new_' + responsibleCounter++;
+
+
+        responsibleCounter++; // Garante que o contador seja incrementado
+        const responsibleId = responsibleData.id || 'new_responsible_' + Date.now() + '_' + responsibleCounter;
         const responsibleName = responsibleData.nome || '';
         const responsibleEmail = responsibleData.email || '';
         const responsibleCelular = responsibleData.celular || '';
@@ -163,7 +166,7 @@ $(document).ready(function () {
                     <div class="card mb-3">
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <span><i class="fas fa-user-graduate me-2"></i>Alunos Relacionados</span>
-                            <button type="button" class="btn btn-sm btn-success add-student-btn" data-bs-toggle="modal" data-bs-target="#addStudentModal" data-responsible-id="${responsibleId}">
+                            <button type="button" class="btn btn-sm btn-success add-student-btn" data-responsible-id="${responsibleId}">
                                 <i class="fas fa-plus-circle me-1"></i>Adicionar Aluno
                             </button>
                         </div>
@@ -268,20 +271,47 @@ $(document).ready(function () {
     $(document).on('click', '.add-student-btn', function () {
         const responsibleId = $(this).data('responsible-id');
         console.log("Botão Adicionar Aluno clicado para responsibleId:", responsibleId);
+
+        // Prepara o modal de aluno
         $('#responsibleForStudentId').val(responsibleId);
         $('#addStudentModalLabel').text('Adicionar Novo Aluno');
         $('#studentForm')[0].reset();
-        $('#currentStudentId').val(''); // Garante que é um novo aluno
-        $('#unidadeAluno').val('').trigger('change'); // Reseta unidade e dispara change para limpar série
+        $('#currentStudentId').val('');
+        $('#unidadeAluno').val('').trigger('change');
         $('#serieAluno').html('<option value="">Selecione uma unidade antes</option>').prop('disabled', true);
 
-        // Preencher unidades no modal do aluno - já está no HTML via Blade, não precisa recarregar
-        // a menos que queira sempre a lista mais atualizada do servidor.
-        // Se os @foreach($unidades) no modal já populam, essa chamada abaixo pode ser desnecessária
-        // ou causar um "flash" no select.
-        // $.getJSON("{{ route('cadastros.opcoes') }}", function (data) {
-        //     preencherSelect('#unidadeAluno', data.unidades, 'id', 'nome', null, 'Selecione');
-        // });
+        // IMPORTANTE: Verifique se o modal principal ainda está com 'show' ANTES de abrir o novo.
+        // Se ele perde 'show' aqui, o problema é ainda mais fundamental.
+        // console.log("Antes de abrir #addStudentModal, #cadastroModal tem 'show'?", $('#cadastroModal').hasClass('show'));
+
+        // Abre o modal de aluno programaticamente
+        var addStudentModal = new bootstrap.Modal(document.getElementById('addStudentModal'));
+        addStudentModal.show();
+
+        // DEPOIS de chamar .show() no modal de aluno,
+        // vamos garantir que o modal principal (#cadastroModal) não tenha perdido a classe 'show'
+        // e que o body ainda esteja em 'modal-open'.
+        // Isso é um pouco de "forçar a barra" com o Bootstrap.
+        if ($('#cadastroModal').length && !$('#cadastroModal').hasClass('show')) {
+            // Se o #cadastroModal perdeu 'show', algo está errado na interação.
+            // Tentativa de reassegurar seu estado.
+            // console.warn('#cadastroModal perdeu "show" ao abrir #addStudentModal. Tentando restaurar.');
+            // $('#cadastroModal').addClass('show'); // Isso pode não ser suficiente sem o backdrop
+        }
+
+        // A principal preocupação é o estado do body.
+        // O Bootstrap pode remover 'modal-open' ao abrir um segundo modal se não estiver
+        // ciente que o primeiro deve permanecer.
+        // Vamos garantir que o modal-open persista para o modal de baixo.
+        // setTimeout é para dar um pequeno tempo para o Bootstrap processar a abertura do addStudentModal
+        setTimeout(function () {
+            if ($('#cadastroModal').hasClass('show')) { // Verifique se o modal principal DEVERIA estar visível
+                $('body').addClass('modal-open');
+                // Adicionar aria-hidden=false ao modal principal se o BS o escondeu
+                $('#cadastroModal').attr('aria-hidden', 'false').css('display', 'block');
+            }
+        }, 0); // 0 ms de delay, apenas para enfileirar a execução após o processamento atual do Bootstrap
+
     });
 
     // Lida com o clique no botão "Editar Aluno"
@@ -347,19 +377,15 @@ $(document).ready(function () {
     // Lida com o clique no botão "Salvar Aluno" (#btnSaveStudent)
     $('#btnSaveStudent').on('click', function () {
         const responsibleId = $('#responsibleForStudentId').val();
-        const studentIdInForm = $('#currentStudentId').val(); // Este será o ID da linha (data-student-id), que pode ser 'new_SX' ou um ID numérico
+        const studentId = $('#currentStudentId').val(); // Pode ser '' para novo ou o ID para edição
         const nomeAluno = $('#nomeAluno').val();
-        const dataNascimentoAluno = $('#dataNascimentoAluno').val(); // Formato YYYY-MM-DD
+        const dataNascimentoAluno = $('#dataNascimentoAluno').val();
         const unidadeId = $('#unidadeAluno').val();
         const serieId = $('#serieAluno').val();
         const colegioAtual = $('#colegioAtualAluno').val();
 
-        if (!responsibleId) {
-            alert('ID do responsável não encontrado. Não é possível salvar o aluno.');
-            return;
-        }
         if (!nomeAluno || !dataNascimentoAluno || !unidadeId || !serieId) {
-            alert('Por favor, preencha todos os campos obrigatórios do aluno (Nome, Data de Nascimento, Unidade, Série).');
+            alert('Por favor, preencha todos os campos obrigatórios do aluno.');
             return;
         }
 
@@ -367,24 +393,38 @@ $(document).ready(function () {
         const serieNome = $('#serieAluno option:selected').text();
 
         const studentData = {
-            id: studentIdInForm, // Pode ser 'new_SX' ou um ID numérico para edição
-            temp_id_for_edit: studentIdInForm, // Usado para encontrar a linha se for edição de um 'new_SX'
+            // Usar um ID temporário mais robusto para novos alunos
+            id: studentId || 'new_student_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
             nome: nomeAluno,
-            data_nascimento: dataNascimentoAluno, // YYYY-MM-DD
+            data_nascimento: dataNascimentoAluno,
             fk_escola: unidadeId,
             unidade_nome: unidadeNome,
             fk_serie: serieId,
             serie_nome: serieNome,
             colegio_atual: colegioAtual
         };
-        console.log("Salvando aluno para responsibleId:", responsibleId, "Dados do aluno:", studentData);
 
-        // Verifica se é uma edição de um aluno já existente (não 'new_') ou um novo
-        const isEditingExistingDbRecord = studentIdInForm && !studentIdInForm.toString().startsWith('new_');
-        addOrUpdateStudentRow(responsibleId, studentData, isEditingExistingDbRecord);
-
+        addOrUpdateStudentRow(responsibleId, studentData);
         $('#addStudentModal').modal('hide');
+        // A lógica para restaurar o modal principal será tratada no evento 'hidden.bs.modal'
     });
+
+    // Quando o modal de aluno (#addStudentModal) for completamente escondido
+    $('#addStudentModal').on('hidden.bs.modal', function () {
+        console.log("Modal de aluno fechado.");
+        // A classe 'show' no modal principal é o indicador mais importante
+        if ($('#cadastroModal').hasClass('show')) {
+            console.log("Modal de cadastro principal AINDA TEM a classe 'show'. Restaurando body e foco.");
+            $('body').addClass('modal-open');
+            $('#cadastroModal').attr('aria-hidden', 'false').css('display', 'block'); // Garanta que ele seja visualmente presente
+            $('#cadastroModal').focus();
+        } else {
+            console.log("Modal de cadastro principal NÃO TEM MAIS a classe 'show' após fechar modal de aluno.");
+            // Se isso acontecer, o problema é mais complexo do que apenas o fechamento.
+            // Pode ser que a abertura do modal de aluno já esteja fechando o principal.
+        }
+    });
+
 
     // Remover Aluno da lista no modal principal
     $(document).on('click', '.remove-student-btn', function () {
@@ -444,134 +484,98 @@ $(document).ready(function () {
 
 
     // Submissão do formulário principal de NOVO CADASTRO e EDIÇÃO
-    $(document).on('submit', 'form.ajax-form', function (e) {
+    $(document).on('submit', '.ajax-form', function (e) {
         e.preventDefault();
         const $form = $(this);
-        const formData = new FormData(this); // Usar FormData para arquivos, se houver
+        const responsiblesData = {};
 
-        // Coletar dados dos responsáveis e alunos de forma estruturada
-        const responsiblesObject = {};
-        $form.find('.responsible-card').each(function (indexR) {
+        $form.find('.responsible-card').each(function () {
             const $responsibleCard = $(this);
-            const tempResponsibleId = $responsibleCard.data('responsible-id'); // ex: 'new_0' ou ID numérico
+            const responsibleId = $responsibleCard.data('responsible-id'); // ID original (pode ser numérico ou 'new_...')
 
-            const responsibleData = {
-                id: tempResponsibleId, // ID original do card (pode ser 'new_X' ou ID do banco)
-                nome: $responsibleCard.find(`input[name="responsibles[${tempResponsibleId}][nome]"]`).val(),
-                email: $responsibleCard.find(`input[name="responsibles[${tempResponsibleId}][email]"]`).val(),
-                celular: $responsibleCard.find(`input[name="responsibles[${tempResponsibleId}][celular]"]`).val(),
-                alunos: [] // Mudar para array para ser mais fácil no backend
+            // Usar um identificador único do formulário para o backend, especialmente para novos.
+            // O name do input já deve estar correto: responsibles[ID_TEMP_DO_CARD][propriedade]
+            const responsibleFormKey = responsibleId;
+
+            const responsibleName = $responsibleCard.find(`input[name="responsibles[${responsibleFormKey}][nome]"]`).val();
+            const responsibleEmail = $responsibleCard.find(`input[name="responsibles[${responsibleFormKey}][email]"]`).val();
+            const responsibleCelular = $responsibleCard.find(`input[name="responsibles[${responsibleFormKey}][celular]"]`).val();
+
+            responsiblesData[responsibleFormKey] = {
+                id: responsibleId, // Envia o ID original (seja numérico ou 'new_...')
+                nome: responsibleName,
+                email: responsibleEmail,
+                celular: responsibleCelular,
+                alunos: {}
             };
 
-            $responsibleCard.find('.students-table tbody tr').each(function (indexA) {
+            $responsibleCard.find('.students-table tbody tr').each(function () {
                 const $studentRow = $(this);
-                const tempStudentId = $studentRow.data('student-id'); // ex: 'new_S0' ou ID numérico
+                const studentId = $studentRow.data('student-id'); // ID original do aluno
+                const studentFormKey = studentId;
 
-                if ($studentRow.find('td[colspan="6"]').length > 0) return; // Pula a linha "Nenhum aluno"
+                const studentName = $studentRow.find(`input[name$="[${studentFormKey}][nome]"]`).val();
+                const studentDataNascimento = $studentRow.find(`input[name$="[${studentFormKey}][data_nascimento]"]`).val();
+                const studentFkSerie = $studentRow.find(`input[name$="[${studentFormKey}][fk_serie]"]`).val();
+                const studentFkEscola = $studentRow.find(`input[name$="[${studentFormKey}][fk_escola]"]`).val();
+                const studentColegioAtual = $studentRow.find(`input[name$="[${studentFormKey}][colegio_atual]"]`).val();
 
-                const studentDetail = {
-                    id: tempStudentId, // ID original da linha do aluno
-                    nome: $studentRow.find(`input[name="responsibles[${tempResponsibleId}][alunos][${tempStudentId}][nome]"]`).val(),
-                    data_nascimento: $studentRow.find(`input[name="responsibles[${tempResponsibleId}][alunos][${tempStudentId}][data_nascimento]"]`).val(),
-                    fk_escola: $studentRow.find(`input[name="responsibles[${tempResponsibleId}][alunos][${tempStudentId}][fk_escola]"]`).val(),
-                    fk_serie: $studentRow.find(`input[name="responsibles[${tempResponsibleId}][alunos][${tempStudentId}][fk_serie]"]`).val(),
-                    colegio_atual: $studentRow.find(`input[name="responsibles[${tempResponsibleId}][alunos][${tempStudentId}][colegio_atual]"]`).val(),
+                responsiblesData[responsibleFormKey].alunos[studentFormKey] = {
+                    id: studentId,
+                    nome: studentName,
+                    data_nascimento: studentDataNascimento,
+                    fk_serie: studentFkSerie,
+                    fk_escola: studentFkEscola,
+                    colegio_atual: studentColegioAtual
                 };
-                responsibleData.alunos.push(studentDetail);
-            });
-            // Usar um índice numérico ou o ID temporário como chave
-            responsiblesObject[tempResponsibleId] = responsibleData;
-        });
-
-        // Adicionar os dados dos responsáveis ao FormData
-        // FormData não suporta objetos aninhados complexos diretamente de forma padrão em todas as libs de backend
-        // Uma forma é serializar como JSON ou enviar campos individualmente com notação de array.
-        // O Laravel lida bem com a notação de array: responsibles[0][nome], responsibles[0][alunos][0][nome]
-
-        // Limpar FormData de campos 'responsibles' se existirem para evitar duplicação
-        for (let key of formData.keys()) {
-            if (key.startsWith('responsibles[')) {
-                formData.delete(key);
-            }
-        }
-
-        // Adicionar os dados estruturados dos responsáveis. O Laravel entenderá isso.
-        Object.keys(responsiblesObject).forEach(respKey => {
-            formData.append(`responsibles[${respKey}][id]`, responsiblesObject[respKey].id);
-            formData.append(`responsibles[${respKey}][nome]`, responsiblesObject[respKey].nome);
-            formData.append(`responsibles[${respKey}][email]`, responsiblesObject[respKey].email);
-            formData.append(`responsibles[${respKey}][celular]`, responsiblesObject[respKey].celular);
-            responsiblesObject[respKey].alunos.forEach((aluno, alunoIndex) => {
-                const alunoKey = aluno.id; // Usar o ID do aluno (new_SX ou numérico) como chave
-                formData.append(`responsibles[${respKey}][alunos][${alunoKey}][id]`, aluno.id);
-                formData.append(`responsibles[${respKey}][alunos][${alunoKey}][nome]`, aluno.nome);
-                formData.append(`responsibles[${respKey}][alunos][${alunoKey}][data_nascimento]`, aluno.data_nascimento);
-                formData.append(`responsibles[${respKey}][alunos][${alunoKey}][fk_escola]`, aluno.fk_escola);
-                formData.append(`responsibles[${respKey}][alunos][${alunoKey}][fk_serie]`, aluno.fk_serie);
-                formData.append(`responsibles[${respKey}][alunos][${alunoKey}][colegio_atual]`, aluno.colegio_atual);
             });
         });
 
+        const mainCadastroData = {
+            _token: $form.find('input[name="_token"]').val(), // Garante o token CSRF
+            _method: $form.find('input[name="_method"]').val() || $form.attr('method'), // Para PUT/PATCH
+            fk_atendente: $form.find('[name="fk_atendente"]').val(),
+            fk_origens: $form.find('[name="fk_origens"]').val(),
+            fk_situacao: $form.find('[name="fk_situacao"]').val(),
+            observacoes: $form.find('[name="observacoes"]').val(),
+            responsibles: Object.values(responsiblesData) // Envia como um array de responsáveis
+        };
 
-        // DEBUG: Logar o FormData (não é simples, precisa iterar)
-        // console.log("Enviando dados do formulário principal:");
-        // for (var pair of formData.entries()) {
-        //     console.log(pair[0]+ ': ' + pair[1]);
-        // }
 
         $.ajax({
             url: $form.attr('action'),
             method: $form.attr('method'),
-            data: formData,
-            processData: false, // Necessário para FormData
-            contentType: false, // Necessário para FormData
+            data: mainCadastroData,
             headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') // Já presente no form @csrf
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
             },
             success: function (response) {
                 if (response.success) {
-                    alert(response.message || 'Operação realizada com sucesso!');
-                    if (cadastrosTable) { // Se a tabela DataTables existir na página
-                        cadastrosTable.ajax.reload();
+                    alert(response.message);
+                    // Tenta usar a variável global para a rota, se definida
+                    if (typeof cadastrosIndexRoute !== 'undefined') {
+                        window.location.href = cadastrosIndexRoute;
+                    } else {
+                        // Fallback para uma URL hardcoded, caso a variável não esteja definida
+                        window.location.href = '/cadastros'; // Ajuste se sua rota base for diferente
                     }
-                    const modalTarget = $form.closest('.modal').attr('id');
-                    if (modalTarget) {
-                        $('#' + modalTarget).modal('hide');
-                    }
-                    if ($form.attr('id') === 'novoCadastroForm' && response.redirect_url) {
-                        window.location.href = response.redirect_url; // Para redirecionar após novo cadastro
-                    } else if ($form.attr('id') === 'novoCadastroForm') {
-                        window.location.href = "/cadastros"; // Fallback
-                    }
-
                 } else {
-                    let errorMessage = response.error || response.message || 'Ocorreu um erro.';
-                    if (response.errors) {
-                        errorMessage += "\\n\\nDetalhes:\\n";
-                        for (const field in response.errors) {
-                            errorMessage += `- ${response.errors[field].join(', ')}\\n`;
-                        }
-                    }
-                    alert(errorMessage);
+                    alert('Erro ao salvar o cadastro: ' + (response.error || 'Erro desconhecido.'));
                 }
             },
             error: function (xhr) {
-                let errorMessage = 'Erro ao realizar a operação.';
+                let errorMessage = 'Erro ao salvar o cadastro.';
                 if (xhr.responseJSON) {
                     if (xhr.responseJSON.message) {
-                        errorMessage += `\\n${xhr.responseJSON.message}`;
+                        errorMessage += '\n' + xhr.responseJSON.message;
                     }
                     if (xhr.responseJSON.errors) {
-                        errorMessage += "\\n\\nDetalhes:\\n";
-                        for (const field in xhr.responseJSON.errors) {
-                            errorMessage += `- ${field}: ${xhr.responseJSON.errors[field].join(', ')}\\n`;
+                        for (const key in xhr.responseJSON.errors) {
+                            errorMessage += `\n- ${xhr.responseJSON.errors[key].join(', ')}`;
                         }
                     }
-                } else {
-                    errorMessage += `\\nStatus: ${xhr.status} - ${xhr.statusText}`;
                 }
                 alert(errorMessage);
-                console.error("Erro AJAX:", xhr);
             }
         });
     });
@@ -771,13 +775,11 @@ $(document).ready(function () {
     // Inicialização
     if ($('#cadastros-table').length) {
         carregarOpcoesParaFiltro();
-        const rotaSeriesEscola = "{{ route('series.by.escola', ['escolaId' => ':escolaId']) }}";
-        setupAtualizaSerie('filterUnidade', 'filterSerie', rotaSeriesEscola.replace(':escolaId', ''));
+        setupAtualizaSerie('filterUnidade', 'filterSerie');
     }
     // Para o modal de aluno, as unidades são carregadas via Blade.
     // A rota /series/escola/:id é chamada diretamente.
-    const rotaSeriesEscolaModal = "{{ route('series.by.escola', ['escolaId' => ':escolaId']) }}";
-    setupAtualizaSerie('unidadeAluno', 'serieAluno', rotaSeriesEscolaModal.replace(':escolaId', ''));
+    setupAtualizaSerie('unidadeAluno', 'serieAluno');
 
 
     // Lida com o botão de exclusão (já existe no código fornecido)
@@ -818,9 +820,12 @@ $(document).ready(function () {
 
 
     // --- Lógica específica para o formulário de EDIÇÃO de Cadastro ---
-    if ($('#cadastroForm[action*="/cadastros/"][action*="/edit"]').length || $('#cadastroForm[method="POST"]').attr('action').includes('update')) {
-        // Este bloco é para a página de edição (ex: /cadastros/{id}/edit)
-        console.log("Página de Edição de Cadastro detectada.");
+    // --- Lógica específica para o formulário de EDIÇÃO de Cadastro ---
+    var $editForm = $('#cadastroForm'); // Procura pelo formulário com ID 'cadastroForm'
+
+    // Verifica se o formulário de edição #cadastroForm existe E se ele contém um input _method com valor PUT
+    if ($editForm.length && $editForm.find('input[name="_method"][value="PUT"]').length) {
+        console.log("Página de Edição de Cadastro detectada (ID: cadastroForm, Method: PUT).");
         // carregarOpcoesParaEdicao(); // Se precisar carregar selects dinamicamente para o formulário de edição
 
         // Lógica para popular responsáveis e alunos existentes (já feito pelo Blade em edit.blade.php)
@@ -830,14 +835,17 @@ $(document).ready(function () {
             const id = $(this).data('responsible-id');
             if (typeof id === 'number' && id > maxResponsibleId) maxResponsibleId = id;
         });
-        responsibleCounter = maxResponsibleId + 1; // Para novos responsáveis na edição
+        // Se não houver responsáveis existentes, o contador começa de 0, senão do próximo número.
+        // O ++ é feito em addResponsibleCard, então aqui garantimos a base.
+        responsibleCounter = maxResponsibleId > 0 ? maxResponsibleId : 0;
+
 
         let maxStudentId = 0;
         $('#responsiblesContainer .students-table tbody tr').each(function () {
             const id = $(this).data('student-id');
             if (typeof id === 'number' && id > maxStudentId) maxStudentId = id;
         });
-        studentCounter = maxStudentId + 1; // Para novos alunos na edição
+        studentCounter = maxStudentId > 0 ? maxStudentId : 0; // Contador para novos alunos na edição
 
         // Botão para adicionar NOVO responsável no formulário de EDIÇÃO
         // O modal #addResponsavelModal é usado aqui
@@ -851,10 +859,10 @@ $(document).ready(function () {
                 return;
             }
             // Adiciona como um NOVO responsável, mesmo na edição
-            addResponsibleCard('responsiblesContainer', { nome, email, celular }, false);
+            // O terceiro parâmetro 'true' indica que estamos no modo de edição para addResponsibleCard
+            addResponsibleCard('responsiblesContainer', { nome, email, celular }, true);
             $('#addResponsavelModal').modal('hide');
             $('#responsavelForm')[0].reset();
         });
     }
-
 });

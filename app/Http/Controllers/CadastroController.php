@@ -4,8 +4,9 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth; // Embora não usado diretamente nos métodos mostrados, é bom manter
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth; // Embora não usado diretamente nos métodos mostrados, é bom manter
+use Illuminate\Validation\ValidationException;
 use Yajra\DataTables\Facades\DataTables;
 use App\Models\Cadastro;
 use App\Models\Escola;
@@ -15,6 +16,7 @@ use App\Models\Situacao;
 use App\Models\User;
 use App\Models\Responsavel;
 use App\Models\Aluno;
+use App\Models\Observacao;
 
 class CadastroController extends Controller
 {
@@ -118,56 +120,65 @@ class CadastroController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
-            // O campo do formulário é 'fk_atendente', que contém o ID do usuário
-            'fk_atendente' => 'required|exists:users,id',
-            'fk_origens' => 'required|exists:tb_origens,id',
-            'fk_situacao' => 'required|exists:tb_situacao,id',
-            'responsibles' => 'required|array|min:1',
-            'responsibles.*.nome' => 'required|string|max:255',
-            'responsibles.*.email' => 'nullable|email|max:255',
-            'responsibles.*.celular' => 'nullable|string|max:20', // Ajuste o tamanho se necessário
-            'responsibles.*.alunos' => 'array',
-            'responsibles.*.alunos.*.nome' => 'required|string|max:255',
-            'responsibles.*.alunos.*.data_nascimento' => 'required|date',
-            // O campo do formulário para unidade do aluno é 'fk_escola'
-            'responsibles.*.alunos.*.fk_escola' => 'required|exists:tb_escolas,id',
-            // O campo do formulário para série do aluno é 'fk_serie'
-            'responsibles.*.alunos.*.fk_serie' => 'required|exists:tb_series,id',
-            'responsibles.*.alunos.*.colegio_atual' => 'nullable|string|max:255',
-            'observacoes' => 'nullable|string',
-        ]);
-
-        DB::beginTransaction();
         try {
-            $mainResponsibleId = null;
-
-            $cadastro = Cadastro::create([
-                // CORRIGIDO: Salvar o ID do atendente na coluna 'atendente' da tb_cadastro
-                'atendente' => $request->fk_atendente,
-                'fk_origens' => $request->fk_origens,
-                'fk_situacao' => $request->fk_situacao,
-                'observacoes' => $request->observacoes,
-                // CORRIGIDO: Usar dt_insert para a data de criação
-                'dt_insert' => now(),
-                'codigo' => $this->generateUniqueCode(),
-                'fk_responsavel' => null, // Será atualizado depois
-                'status' => 1, // Default status
+            // Validação dos dados (o campo 'observacoes' é para o texto da observação)
+            $validatedData = $request->validate([
+                'fk_atendente' => 'required|exists:users,id',
+                'fk_origens' => 'required|exists:tb_origens,id',
+                'fk_situacao' => 'required|exists:tb_situacao,id',
+                'responsibles' => 'required|array|min:1',
+                'responsibles.*.nome' => 'required|string|max:255',
+                'responsibles.*.email' => 'nullable|email|max:255',
+                'responsibles.*.celular' => 'nullable|string|max:20',
+                'responsibles.*.alunos' => 'sometimes|array',
+                'responsibles.*.alunos.*.nome' => 'required_with:responsibles.*.alunos|string|max:255',
+                'responsibles.*.alunos.*.data_nascimento' => 'required_with:responsibles.*.alunos|date',
+                'responsibles.*.alunos.*.fk_escola' => 'required_with:responsibles.*.alunos|exists:tb_escolas,id',
+                'responsibles.*.alunos.*.fk_serie' => 'required_with:responsibles.*.alunos|exists:tb_series,id',
+                'responsibles.*.alunos.*.colegio_atual' => 'nullable|string|max:255',
+                'observacoes' => 'nullable|string|max:65535', // Validar o texto da observação
+                // Adicione aqui validações para outros campos da tb_cadastro se necessário
+                // Ex: 'forma_contato' => 'nullable|string|max:50',
             ]);
 
-            foreach ($request->input('responsibles') as $responsibleData) {
+            DB::beginTransaction();
+
+            $mainResponsibleId = null;
+
+            // Cria o cadastro principal (sem o campo 'observacoes' direto)
+            $cadastro = Cadastro::create([
+                'atendente' => $validatedData['fk_atendente'], // Coluna 'atendente' na tb_cadastro
+                'fk_origens' => $validatedData['fk_origens'],
+                'fk_situacao' => $validatedData['fk_situacao'],
+                'fk_responsavel' => null, // Será atualizado depois
+                'status' => 1,
+                // 'fk_indique' => $validatedData['fk_indique'] ?? 1, // Se você tiver esse campo no form
+                // 'forma_contato' => $validatedData['forma_contato'] ?? null, // Se tiver
+                // dt_insert e dt_update são gerenciados pelo Eloquent (constantes no modelo)
+            ]);
+
+            // Salva a observação na tabela tb_observacao, se houver
+            if (!empty($validatedData['observacoes'])) {
+                Observacao::create([
+                    'fk_cadastro' => $cadastro->id,
+                    'fk_usuarios' => Auth::id(), // ID do usuário logado (atendente)
+                    'texto' => $validatedData['observacoes'],
+                    // dt_insert será preenchido automaticamente pelo Eloquent/BD
+                ]);
+            }
+
+            // Loop para responsáveis e alunos (como estava antes, mas verifique 'inclusao' e 'fk_aluno_categoria')
+            foreach ($validatedData['responsibles'] as $responsibleData) {
                 $responsible = Responsavel::create([
                     'nome' => $responsibleData['nome'],
-                    'email' => $responsibleData['email'],
-                    'celular' => $responsibleData['celular'],
+                    'email' => $responsibleData['email'] ?? null,
+                    'celular' => $responsibleData['celular'] ?? null,
                     'status' => 1,
                 ]);
 
-                // Vincular responsável ao cadastro principal
                 DB::table('tb_responsavel_has_tb_cadastro')->insert([
                     'fk_cadastro' => $cadastro->id,
                     'fk_responsavel' => $responsible->id,
-                    // 'status' => 1, // Se esta tabela tiver um campo status
                 ]);
 
                 if (is_null($mainResponsibleId)) {
@@ -176,40 +187,48 @@ class CadastroController extends Controller
 
                 if (!empty($responsibleData['alunos'])) {
                     foreach ($responsibleData['alunos'] as $alunoData) {
-                        Aluno::create([
+                        $aluno = Aluno::create([
                             'nome' => $alunoData['nome'],
-                            // CORRIGIDO: dt_nascimento no banco
                             'dt_nascimento' => $alunoData['data_nascimento'],
-                            // CORRIGIDO: Salvar na coluna 'fk_escolas' e 'fk_series'
                             'fk_escolas' => $alunoData['fk_escola'],
                             'fk_series' => $alunoData['fk_serie'],
-                            'colegio_atual' => $alunoData['colegio_atual'],
-                            'fk_aluno_categoria' => 1, // Default
+                            'colegio_atual' => $alunoData['colegio_atual'] ?? null,
+                            'fk_aluno_categoria' => 1, // Assegure que ID 1 existe em tb_aluno_categoria
+                            'inclusao' => $alunoData['inclusao'] ?? 0, // O seu SQL mostra DEFAULT '0' para inclusao
                             'status' => 1,
-                            // 'dt_insert' => now(), // Se a tabela aluno tiver dt_insert
                         ]);
 
-                        // Se a tabela tb_responsavel_has_tb_aluno for usada e tiver status
-                        // DB::table('tb_responsavel_has_tb_aluno')->insert([
-                        //     'fk_responsavel' => $responsible->id,
-                        //     'fk_aluno' => $aluno->id,
-                        //     // 'status' => 1, // Se houver status
-                        // ]);
+                        DB::table('tb_responsavel_has_tb_aluno')->insert([
+                            'fk_responsavel' => $responsible->id,
+                            'fk_aluno' => $aluno->id,
+                        ]);
                     }
                 }
             }
 
-            // Atualiza o cadastro principal com o ID do primeiro responsável como principal
             if ($mainResponsibleId) {
                 $cadastro->update(['fk_responsavel' => $mainResponsibleId]);
             }
 
             DB::commit();
             return response()->json(['success' => true, 'message' => 'Cadastro criado com sucesso!', 'cadastro_id' => $cadastro->id]);
+
+        } catch (ValidationException $e) {
+            DB::rollBack();
+            Log::warning('Erro de validação ao salvar cadastro: ' . $e->getMessage(), ['errors' => $e->errors()]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro de validação. Verifique os dados enviados.',
+                'errors' => $e->errors()
+            ], 422);
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Erro ao salvar cadastro: ' . $e->getMessage() . ' Stack: ' . $e->getTraceAsString()); //vs code aponta erro nessa linha: Undefined type 'Log'.intelephense(P1009)
-            return response()->json(['success' => false, 'error' => 'Ocorreu um erro ao salvar o cadastro: ' . $e->getMessage()], 500);
+            Log::error('Erro crítico ao salvar cadastro: ' . $e->getMessage() . ' Stack: ' . $e->getTraceAsString());
+            return response()->json([
+                'success' => false,
+                'error' => 'Ocorreu um erro interno ao salvar o cadastro.',
+                // 'error_debug_message' => $e->getMessage() // Para desenvolvimento
+            ], 500);
         }
     }
 
@@ -397,7 +416,7 @@ class CadastroController extends Controller
             return response()->json(['success' => true, 'message' => 'Cadastro atualizado com sucesso!']);
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Erro ao atualizar cadastro: ' . $e->getMessage() . ' Stack: ' . $e->getTraceAsString()); //vs code aponta erro nessa linha: Undefined type 'Log'.intelephense(P1009)
+            Log::error('Erro ao atualizar cadastro: ' . $e->getMessage() . ' Stack: ' . $e->getTraceAsString()); //vs code aponta erro nessa linha: Undefined type 'Log'.intelephense(P1009)
             return response()->json(['success' => false, 'error' => 'Ocorreu um erro ao atualizar o cadastro: ' . $e->getMessage()], 500);
         }
     }
@@ -442,7 +461,7 @@ class CadastroController extends Controller
             return response()->json(['success' => true, 'message' => 'Cadastro excluído (desativado) com sucesso!']);
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Erro ao excluir cadastro: ' . $e->getMessage() . ' Stack: ' . $e->getTraceAsString()); //vs code aponta erro nessa linha: Undefined type 'Log'.intelephense(P1009)
+            Log::error('Erro ao excluir cadastro: ' . $e->getMessage() . ' Stack: ' . $e->getTraceAsString()); //vs code aponta erro nessa linha: Undefined type 'Log'.intelephense(P1009)
             return response()->json(['success' => false, 'error' => 'Ocorreu um erro ao excluir o cadastro.'], 500);
         }
     }
@@ -514,9 +533,7 @@ class CadastroController extends Controller
             },
             'situacao',
             'origem',
-            // Assumindo que a relação no Model Cadastro para User se chama 'atendenteRelacao'
-            // e usa a FK 'atendente' (ou fk_atendente se for o caso no seu BD atual)
-            'atendenteRelacao'
+            'atendente'
         ])->findOrFail($id);
 
         $unidades = Escola::where('status', 1)->orderBy('nome')->get();

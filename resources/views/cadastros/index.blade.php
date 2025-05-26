@@ -147,7 +147,7 @@
                     <div id="newResponsiblesContainer">
                         {{-- O primeiro responsável será adicionado via JS --}}
                     </div>
-                    <button type="button" class="btn btn-primary mb-4" id="addNewResponsibleBtn"><i class="fas fa-plus-circle me-1"></i>Adicionar Outro Responsável</button>
+                    <!-- <button type="button" class="btn btn-primary mb-4" id="addNewResponsibleBtn"><i class="fas fa-plus-circle me-1"></i>Adicionar Outro Responsável</button> -->
 
                 </div>
                 <div class="modal-footer">
@@ -245,5 +245,6 @@
 <script>
     // Define a variável JavaScript com a rota do Laravel
     const cadastrosListarRoute = "{{ route('cadastros.listar') }}";
+    const cadastrosIndexRoute = "{{ route('cadastros.index') }}"; 
 </script>
 @endpush
