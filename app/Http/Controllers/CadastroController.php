@@ -111,11 +111,62 @@ class CadastroController extends Controller
 
                 return '
                     <a href="' . $editUrl . '" class="btn btn-sm btn-warning" title="Editar"><i class="fas fa-edit"></i></a>
+                    <button class="btn btn-sm btn-info btn-view-observacoes" data-id="' . $cadastro->id . '" data-bs-toggle="modal" data-bs-target="#observacoesModal" title="Ver Observações"><i class="fas fa-comments"></i></button>
                     <button class="btn btn-sm btn-danger btn-delete" data-id="' . $cadastro->id . '" title="Excluir"><i class="fas fa-trash"></i></button>
                 ';
             })
             ->rawColumns(['acoes'])
             ->make(true);
+    }
+
+    // Em app/Http/Controllers/CadastroController.php
+    public function getObservacoes(Cadastro $cadastro)
+    {
+        $observacoes = $cadastro->observacoes()->with('usuario')->get();
+
+        if ($observacoes->isEmpty()) {
+            return response()->json(['success' => true, 'message' => 'Nenhuma observação encontrada para este cadastro.', 'data' => []]);
+        }
+
+        $formattedObservacoes = $observacoes->map(function ($obs) {
+            return [
+                'obs_id' => $obs->id, // <<< ADICIONADO ID DA OBSERVAÇÃO
+                'texto_original' => e($obs->texto), // Texto original não processado por nl2br
+                'texto' => nl2br(e($obs->texto)),
+                'data_insercao' => $obs->dt_insert ? $obs->dt_insert->format('d/m/Y H:i:s') : 'Data não disponível',
+                'data_insercao_raw' => $obs->dt_insert ? $obs->dt_insert->toIso8601String() : null, // <<< ADICIONADO DATA RAW
+                'usuario_nome' => $obs->usuario ? e($obs->usuario->name) : 'Usuário desconhecido'
+            ];
+        });
+
+        return response()->json(['success' => true, 'data' => $formattedObservacoes]);
+    }
+
+    public function storeObservacao(Request $request, Cadastro $cadastro)
+    {
+        $validatedData = $request->validate([
+            'texto' => 'required|string|max:65535', // 65535 é o limite para TEXT no MySQL
+        ]);
+
+        try {
+            $observacao = Observacao::create([
+                'fk_cadastro' => $cadastro->id,
+                'fk_usuarios' => Auth::id(), // ID do usuário logado
+                'texto' => $validatedData['texto'],
+            ]);
+
+            // Retornar a observação formatada para adicionar dinamicamente à lista no modal
+            $formattedObservacao = [
+                'texto' => nl2br(e($observacao->texto)),
+                'data_insercao' => $observacao->dt_insert ? $observacao->dt_insert->format('d/m/Y H:i:s') : 'Data não disponível',
+                'usuario_nome' => $observacao->usuario ? e($observacao->usuario->name) : 'Usuário desconhecido'
+            ];
+
+            return response()->json(['success' => true, 'message' => 'Observação salva com sucesso!', 'data' => $formattedObservacao]);
+        } catch (\Exception $e) {
+            Log::error("Erro ao salvar observação para cadastro ID {$cadastro->id}: " . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Erro ao salvar observação.'], 500);
+        }
     }
 
     public function store(Request $request)
@@ -212,7 +263,6 @@ class CadastroController extends Controller
 
             DB::commit();
             return response()->json(['success' => true, 'message' => 'Cadastro criado com sucesso!', 'cadastro_id' => $cadastro->id]);
-
         } catch (ValidationException $e) {
             DB::rollBack();
             Log::warning('Erro de validação ao salvar cadastro: ' . $e->getMessage(), ['errors' => $e->errors()]);
@@ -558,11 +608,5 @@ class CadastroController extends Controller
                 $query->where('nome', 'Atendente');
             })->orderBy('name')->get(),
         ]);
-    }
-
-    private function generateUniqueCode()
-    {
-        // Gera um código único mais curto e legível
-        return 'CAD-' . date('Ymd') . '-' . strtoupper(substr(md5(uniqid(rand(), true)), 0, 4));
     }
 }

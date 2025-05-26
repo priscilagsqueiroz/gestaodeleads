@@ -6,6 +6,7 @@ use App\Http\Controllers\CadastroController;
 use App\Http\Controllers\AtendentesController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SerieController;
+use App\Http\Controllers\ObservacaoController;
 use App\Http\Controllers\Auth\LogoutController;
 
 // Página inicial (dashboard principal do sistema)
@@ -23,7 +24,11 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/listar', [CadastroController::class, 'listar'])->name('listar');
         Route::get('/opcoes', [CadastroController::class, 'opcoes'])->name('opcoes');
         Route::get('/{id}/details', [CadastroController::class, 'show'])->name('details');
+        Route::get('/{cadastro}/observacoes', [CadastroController::class, 'getObservacoes'])->name('observacoes');
+        Route::post('/{cadastro}/observacoes', [CadastroController::class, 'storeObservacao'])->name('observacoes.store');
     });
+    
+    Route::put('/observacoes/{observacao}/update', [ObservacaoController::class, 'update'])->name('observacoes.update');
 
     // Grupo de rotas para 'atendentes'
     Route::prefix('atendentes')->name('atendentes.')->group(function () {

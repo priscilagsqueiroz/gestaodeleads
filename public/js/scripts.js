@@ -58,7 +58,6 @@ $(document).ready(function () {
         });
     }
 
-
     // Função para preencher selects dinamicamente
     function preencherSelect(selectId, data, valueField, textField, selectedValue = null, placeholder = "Selecione") {
         const $select = $(selectId);
@@ -79,19 +78,6 @@ $(document).ready(function () {
             $('#filterSerie').html('<option value="">Selecione uma unidade</option>');
         });
     }
-    // Para o modal de novo cadastro (carrega atendentes, origens, situações)
-    function carregarOpcoesParaNovoCadastro() {
-        // Os selects de atendente, origem, situação no modal de novo cadastro
-        // já são populados pelo Blade em index.blade.php.
-        // Se precisar de carregamento dinâmico para eles também, adicione aqui.
-        // Ex:
-        // $.getJSON("{{ route('cadastros.opcoes') }}", function (data) {
-        //     preencherSelect('#atendenteNovo', data.atendentes, 'id', 'name');
-        //     preencherSelect('#origemNovo', data.origens, 'id', 'nome');
-        //     preencherSelect('#situacaoNovo', data.situacoes, 'id', 'nome');
-        // });
-    }
-
 
     // Configura a atualização da série com base na unidade selecionada
     function setupAtualizaSerie(unidadeSelectId, serieSelectId, urlBase = '/series/escola/') {
@@ -266,7 +252,6 @@ $(document).ready(function () {
         }
     }
 
-
     // Lida com o clique no botão "Adicionar Aluno"
     $(document).on('click', '.add-student-btn', function () {
         const responsibleId = $(this).data('responsible-id');
@@ -373,7 +358,6 @@ $(document).ready(function () {
         $('#colegioAtualAluno').val(studentData.colegio_atual);
     });
 
-
     // Lida com o clique no botão "Salvar Aluno" (#btnSaveStudent)
     $('#btnSaveStudent').on('click', function () {
         const responsibleId = $('#responsibleForStudentId').val();
@@ -424,7 +408,6 @@ $(document).ready(function () {
             // Pode ser que a abertura do modal de aluno já esteja fechando o principal.
         }
     });
-
 
     // Remover Aluno da lista no modal principal
     $(document).on('click', '.remove-student-btn', function () {
@@ -481,7 +464,6 @@ $(document).ready(function () {
             }
         }
     });
-
 
     // Submissão do formulário principal de NOVO CADASTRO e EDIÇÃO
     $(document).on('submit', '.ajax-form', function (e) {
@@ -580,7 +562,6 @@ $(document).ready(function () {
         });
     });
 
-
     // Inicialização do DataTables (se estiver na página de listagem)
     if ($('#cadastros-table').length) {
         var cadastrosTable = $('#cadastros-table').DataTable({
@@ -599,7 +580,7 @@ $(document).ready(function () {
             },
             columns: [
                 { className: 'dt-control', orderable: false, data: null, defaultContent: '' },
-                { data: 'codigo', name: 'tb_cadastro.codigo' }, // Especificar tabela para desambiguação se necessário
+                { data: 'id', name: 'tb_cadastro.id' }, // Especificar tabela para desambiguação se necessário
                 { data: 'responsavel_nome', name: 'tb_responsavel.nome' },
                 { data: 'responsavel_email', name: 'tb_responsavel.email' },
                 { data: 'responsavel_celular', name: 'tb_responsavel.celular' },
@@ -609,7 +590,7 @@ $(document).ready(function () {
                 { data: 'data_cadastro', name: 'tb_cadastro.dt_insert' }, // Corresponde ao alias/coluna no backend
                 { data: 'acoes', name: 'acoes', orderable: false, searchable: false }
             ],
-            order: [[1, 'asc']],
+            order: [[1, 'desc']],
             language: { url: '/js/pt-BR.json' }, // Certifique-se que este arquivo existe na pasta public/js
             // Configurações adicionais de responsividade e botões se necessário
         });
@@ -648,6 +629,215 @@ $(document).ready(function () {
         });
     }
 
+    // Função para carregar e exibir observações (você já tem algo parecido)
+    function carregarObservacoes(cadastroId) {
+        var observacoesModalLabel = $('#observacoesModalLabel');
+        var observacoesConteudo = $('#observacoesConteudo');
+        var urlObservacoes = rotaObservacoesBase.replace(':id', cadastroId); // Use a rota nomeada
+
+        observacoesModalLabel.text('Observações do Cadastro #' + cadastroId);
+        observacoesConteudo.html('<p class="text-center"><i class="fas fa-spinner fa-spin"></i> Carregando observações...</p>');
+        $('#observacaoCadastroId').val(cadastroId); // Guarda o ID do cadastro no input hidden
+
+        $.ajax({
+            url: urlObservacoes,
+            type: 'GET',
+            dataType: 'json',
+            success: function (response) {
+                if (response.success && response.data && response.data.length > 0) {
+                    var html = '<ul class="list-group list-group-flush">'; // Use list-group-flush para remover bordas
+                    response.data.forEach(function (obs) {
+                        html += formatarObservacaoParaLista(obs);
+                    });
+                    html += '</ul>';
+                    observacoesConteudo.html(html);
+                } else {
+                    observacoesConteudo.html('<p class="text-center">Nenhuma observação encontrada para este cadastro.</p>');
+                }
+            },
+            error: function (xhr, status, error) {
+                observacoesConteudo.html('<p class="text-center text-danger">Erro ao carregar observações.</p>');
+                console.error("Erro AJAX ao buscar observações:", xhr);
+            }
+        });
+    }
+
+
+    // Função para formatar uma observação como item de lista HTML
+    function formatarObservacaoParaLista(obs) {
+        // obs deve ter: texto, data_insercao, usuario_nome, e agora o ID da observação
+        // Precisamos que o backend envie o ID da observação e a data_insercao em um formato
+        // que o JavaScript possa converter para um objeto Date para comparação.
+        // Vamos assumir que o backend enviará 'id' e 'data_insercao_raw' (timestamp ISO 8601 ou similar)
+
+        let editButtonHtml = '';
+        const agora = new Date();
+        // O backend precisa enviar a data_insercao em um formato que new Date() entenda bem,
+        // ou enviar a data já parseada em milissegundos, ou fazer a verificação da janela de tempo no backend
+        // e apenas enviar um booleano 'editavel'.
+        // Por agora, vamos supor que 'data_insercao_raw' é uma string que new Date() pode parsear.
+        // E que o backend também envia o ID da observação como 'obs_id'
+        if (obs.obs_id && obs.data_insercao_raw) {
+            const dataObservacao = new Date(obs.data_insercao_raw);
+            const diffMilissegundos = agora - dataObservacao;
+            const diffMinutos = diffMilissegundos / (1000 * 60);
+
+            if (diffMinutos < 10) { // Editável se feita há menos de 10 minutos
+                editButtonHtml = `
+                <button class="btn btn-sm btn-outline-secondary py-0 px-1 ms-2 btn-editar-observacao"
+                        data-obs-id="${obs.obs_id}"
+                        data-obs-texto="${obs.texto_original}" 
+                        title="Editar esta observação">
+                    <i class="fas fa-pencil-alt fa-xs"></i>
+                </button>
+            `;
+            }
+        }
+
+        return `
+        <li class="list-group-item" data-obs-id-li="${obs.obs_id || ''}">
+            <div class="d-flex justify-content-between align-items-start">
+                <p class="mb-1 observacao-texto">${obs.texto}</p>
+                ${editButtonHtml}
+            </div>
+            <small class="text-muted">
+                Por: ${obs.usuario_nome} em ${obs.data_insercao}
+            </small>
+        </li>
+    `;
+    }
+
+    // Listener para o botão "Ver Observações"
+    $(document).on('click', '.btn-view-observacoes', function () {
+        var cadastroId = $(this).data('id');
+        carregarObservacoes(cadastroId);
+        // O data-bs-toggle e data-bs-target no botão já abrem o modal
+    });
+
+    // Listener para o botão "Editar Observação" em cada item da lista
+    $(document).on('click', '.btn-editar-observacao', function () {
+        const obsId = $(this).data('obs-id');
+        // O texto original pode estar "contaminado" com <br> se pegarmos de .observacao-texto.
+        // É melhor pegar o texto original que guardamos no data attribute do botão.
+        // Mas, para simplificar, se o nl2br só adicionou <br>, podemos tentar reverter.
+        // Ou, melhor ainda, o backend já enviou 'texto_original'.
+        let obsTextoOriginal = $(this).data('obs-texto'); // Vem do data-obs-texto="${obs.texto_original}"
+
+        $('#novaObservacaoTexto').val(obsTextoOriginal).focus(); // Coloca o texto no textarea
+        $('#editingObservacaoId').val(obsId); // Guarda o ID da observação que está sendo editada
+
+        // Muda o botão de salvar para "Atualizar" e talvez a ação
+        $('#btnSalvarNovaObservacao')
+            .text('Atualizar Observação')
+            .removeClass('btn-primary') // opcional: mudar a cor
+            .addClass('btn-success is-editing'); // Adiciona uma classe para sabermos que está em modo de edição
+    });
+
+    // Modificar o listener do botão "Salvar Nova Observação" para lidar com edição
+    $('#btnSalvarNovaObservacao').on('click', function () {
+        var cadastroId = $('#observacaoCadastroId').val();
+        var textoObservacao = $('#novaObservacaoTexto').val().trim();
+        var editingObsId = $('#editingObservacaoId').val(); // Pega o ID da observação em edição
+
+        if (!cadastroId && !editingObsId) { // Precisa de um contexto
+            alert('Erro: ID do cadastro ou da observação não encontrado.');
+            return;
+        }
+        if (textoObservacao === "") {
+            alert('Por favor, escreva a observação.');
+            $('#novaObservacaoTexto').focus();
+            return;
+        }
+
+        var url;
+        var httpMethod;
+        var dataPayload = {
+            _token: $('meta[name="csrf-token"]').attr('content'),
+            texto: textoObservacao
+        };
+
+        if (editingObsId) { // Se editingObsId tem valor, estamos atualizando
+            // rotaObservacoesUpdateBase precisa ser definida no Blade, ex: /observacoes/:obs_id/update
+            // url = rotaObservacoesUpdateBase.replace(':obs_id', editingObsId);
+            url = `/observacoes/${editingObsId}/update`; // Ajuste a rota conforme necessário
+            httpMethod = 'PUT'; // ou 'PATCH'
+            dataPayload._method = 'PUT'; // Laravel espera _method para PUT/PATCH via POST
+        } else { // Senão, estamos criando uma nova
+            // url = rotaObservacoesStoreBase.replace(':id', cadastroId);
+            url = `/cadastros/${cadastroId}/observacoes`;
+            httpMethod = 'POST';
+        }
+
+        var $button = $(this);
+        $button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Salvando...');
+
+        $.ajax({
+            url: url,
+            type: httpMethod, // Pode ser POST (com _method:PUT) ou PUT direto se o servidor suportar
+            data: dataPayload,
+            dataType: 'json',
+            success: function (response) {
+                if (response.success && response.data) {
+                    $('#novaObservacaoTexto').val('');
+                    $('#editingObservacaoId').val(''); // Limpa o ID de edição
+
+                    if (editingObsId) { // Atualizou uma existente
+                        // Encontra o <li> da observação e atualiza seu conteúdo
+                        const $liObservacao = $(`#observacoesConteudo li[data-obs-id-li="${editingObsId}"]`);
+                        if ($liObservacao.length) {
+                            // Recria o HTML do item da lista com os dados atualizados
+                            $liObservacao.html($(formatarObservacaoParaLista(response.data)).html());
+                        } else { // Fallback: recarrega todas se não encontrar o item específico
+                            carregarObservacoes(cadastroId || response.data.fk_cadastro); // Precisa do cadastroId
+                        }
+                        alert(response.message || 'Observação atualizada!');
+                    } else { // Criou uma nova
+                        var novaObservacaoHtml = formatarObservacaoParaLista(response.data);
+                        var $listaObservacoes = $('#observacoesConteudo ul.list-group');
+                        if ($listaObservacoes.find('li').first().text() === "Nenhuma observação encontrada para este cadastro." || $listaObservacoes.length === 0) {
+                            $('#observacoesConteudo').html('<ul class="list-group list-group-flush">' + novaObservacaoHtml + '</ul>');
+                        } else {
+                            $listaObservacoes.prepend(novaObservacaoHtml);
+                        }
+                        alert(response.message || 'Observação salva!');
+                    }
+                    // Restaura o botão para o estado de "Salvar" se estava editando
+                    $button.text('Salvar Observação').removeClass('btn-success is-editing').addClass('btn-primary');
+
+                } else {
+                    alert(response.message || 'Erro ao processar a observação.');
+                }
+            },
+            error: function (xhr) {
+                alert('Erro de comunicação ao salvar/atualizar a observação.');
+                console.error("Erro AJAX:", xhr);
+                $('#editingObservacaoId').val(''); // Limpa em caso de erro também
+                $button.text('Salvar Observação').removeClass('btn-success is-editing').addClass('btn-primary');
+            },
+            complete: function () {
+                $button.prop('disabled', false);
+                if (!$button.hasClass('is-editing')) { // Se não estiver mais editando, volta ao texto padrão
+                    $button.html('<i class="fas fa-save me-1"></i> Salvar Observação');
+                } else {
+                    // Mantém "Atualizar" se ainda for editar ou se a lógica precisar
+                }
+            }
+        });
+    });
+
+    // Ajustar o fechamento do modal para resetar o estado do botão de salvar/atualizar
+    $('#observacoesModal').on('hidden.bs.modal', function () {
+        $('#observacoesConteudo').html('<p>Carregando observações...</p>');
+        $('#observacoesModalLabel').text('Observações do Cadastro');
+        $('#novaObservacaoTexto').val('');
+        $('#observacaoCadastroId').val('');
+        $('#editingObservacaoId').val(''); // Limpa o ID de edição
+        $('#btnSalvarNovaObservacao')
+            .text('Salvar Observação')
+            .removeClass('btn-success is-editing')
+            .addClass('btn-primary')
+            .prop('disabled', false);
+    });
 
     // Função para formatar os detalhes da linha (sub-tabela) - Renomeada para formatDetails
     function formatDetails(d) {
@@ -780,7 +970,6 @@ $(document).ready(function () {
     // Para o modal de aluno, as unidades são carregadas via Blade.
     // A rota /series/escola/:id é chamada diretamente.
     setupAtualizaSerie('unidadeAluno', 'serieAluno');
-
 
     // Lida com o botão de exclusão (já existe no código fornecido)
     $(document).on('click', '.btn-delete', function () {

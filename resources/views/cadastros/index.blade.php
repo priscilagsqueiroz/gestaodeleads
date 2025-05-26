@@ -114,7 +114,7 @@
                                     <select class="form-select" id="atendenteNovo" name="fk_atendente" required>
                                         <option value="">Selecione</option>
                                         @foreach($atendentes as $atendente)
-                                            <option value="{{ $atendente->id }}">{{ $atendente->name }}</option>
+                                        <option value="{{ $atendente->id }}">{{ $atendente->name }}</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -123,7 +123,7 @@
                                     <select class="form-select" id="origemNovo" name="fk_origens" required>
                                         <option value="">Selecione</option>
                                         @foreach($origens as $origem)
-                                            <option value="{{ $origem->id }}">{{ $origem->nome }}</option>
+                                        <option value="{{ $origem->id }}">{{ $origem->nome }}</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -132,7 +132,7 @@
                                     <select class="form-select" id="situacaoNovo" name="fk_situacao" required>
                                         <option value="">Selecione</option>
                                         @foreach($situacoes as $situacao)
-                                            <option value="{{ $situacao->id }}">{{ $situacao->nome }}</option>
+                                        <option value="{{ $situacao->id }}">{{ $situacao->nome }}</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -215,7 +215,7 @@
                             <select class="form-select" id="unidadeAluno" name="unidade" required>
                                 <option value="">Selecione</option>
                                 @foreach($unidades as $unidade)
-                                    <option value="{{ $unidade->id }}">{{ $unidade->nome }}</option>
+                                <option value="{{ $unidade->id }}">{{ $unidade->nome }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -240,11 +240,43 @@
     </div>
 </div>
 
+<div class="modal fade" id="observacoesModal" tabindex="-1" aria-labelledby="observacoesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="observacoesModalLabel">Observações do Cadastro</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="novaObservacaoTexto" class="form-label">Adicionar Nova Observação:</label>
+                    <textarea class="form-control" id="novaObservacaoTexto" rows="3"></textarea>
+                    <input type="hidden" id="observacaoCadastroId" value="">
+                    <input type="hidden" id="editingObservacaoId" value="">
+                </div>
+                <button type="button" class="btn btn-primary mb-3" id="btnSalvarNovaObservacao">
+                    <i class="fas fa-save me-1"></i> Salvar Observação
+                </button>
+                <hr>
+                <h5>Histórico de Observações:</h5>
+                <div id="observacoesConteudo">
+                    <p>Carregando observações...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
 @push('scripts')
 <script>
     // Define a variável JavaScript com a rota do Laravel
     const cadastrosListarRoute = "{{ route('cadastros.listar') }}";
-    const cadastrosIndexRoute = "{{ route('cadastros.index') }}"; 
+    const cadastrosIndexRoute = "{{ route('cadastros.index') }}";
+    const rotaObservacoesBase = "{{ route('cadastros.observacoes', ['cadastro' => ':id']) }}";
+    const rotaObservacoesStoreBase = "{{ route('cadastros.observacoes.store', ['cadastro' => ':id']) }}";
 </script>
 @endpush
