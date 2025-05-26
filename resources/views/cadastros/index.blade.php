@@ -78,7 +78,7 @@
             <table class="table table-striped table-bordered" id="cadastros-table">
                 <thead>
                     <tr>
-                        <th></th> {{-- Para o ícone de expandir/recolher --}}
+                        <th></th>
                         <th>Código</th>
                         <th>Responsável</th>
                         <th>E-mail</th>

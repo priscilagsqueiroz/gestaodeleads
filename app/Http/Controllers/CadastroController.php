@@ -42,8 +42,6 @@ class CadastroController extends Controller
             ->leftJoin('tb_responsavel', 'tb_cadastro.fk_responsavel', '=', 'tb_responsavel.id')
             ->select(
                 'tb_cadastro.id',
-                'tb_cadastro.codigo',
-                // CORRIGIDO: Usar dt_insert e alias para data_cadastro
                 'tb_cadastro.dt_insert as data_cadastro',
                 'tb_situacao.nome as situacao_nome',
                 'tb_origens.nome as origem_nome',
@@ -575,15 +573,21 @@ class CadastroController extends Controller
     public function edit($id)
     {
         $cadastro = Cadastro::with([
-            // Carregar todos os responsáveis associados via pivot, e para cada um, seus alunos ativos
-            'responsaveisPivot' => function ($query) {
-                $query->where('tb_responsavel.status', 1)->with(['alunos' => function ($q) {
-                    $q->where('tb_aluno.status', 1)->with(['serie', 'escola']);
+            // Carregar a COLEÇÃO de responsáveis ativos
+            'responsaveis' => function ($queryResponsaveis) {
+                // O método 'responsaveis()' no Model Cadastro já tem ->where('tb_responsavel.status', 1).
+                // O Global Scope no Model Responsavel também já filtra por status=1.
+                // Então, a condição de status para os Responsavel aqui é redundante, mas não prejudica.
+                // $queryResponsaveis->where('status', 1); // Pode até remover se o global scope e a definição da relação já cuidam disso.
+
+                $queryResponsaveis->with(['alunos' => function ($queryAlunos) {
+                    $queryAlunos->where('status', 1) // Para os alunos
+                        ->with(['serie', 'escola']);
                 }]);
             },
             'situacao',
             'origem',
-            'atendente'
+            'atendente' // Este é o User que fez o cadastro, ok
         ])->findOrFail($id);
 
         $unidades = Escola::where('status', 1)->orderBy('nome')->get();
@@ -591,7 +595,10 @@ class CadastroController extends Controller
         $origens = Origem::where('status', 1)->orderBy('nome')->get();
         $atendentes = User::whereHas('nivel', function ($query) {
             $query->where('nome', 'Atendente');
-        })->where('status', 1)->orderBy('name')->get();
+        })->whereNull('users.deleted_at')->orderBy('name')->get();
+
+        // Antes de retornar a view, para ter certeza absoluta, você pode inspecionar:
+        // dd($cadastro->responsaveis);
 
         return view('cadastros.edit', compact('cadastro', 'unidades', 'situacoes', 'origens', 'atendentes'));
     }
