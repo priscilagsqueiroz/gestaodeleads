@@ -581,7 +581,15 @@ class CadastroController extends Controller
                 // $queryResponsaveis->where('status', 1); // Pode até remover se o global scope e a definição da relação já cuidam disso.
 
                 $queryResponsaveis->with(['alunos' => function ($queryAlunos) {
-                    $queryAlunos->where('status', 1) // Para os alunos
+                    $queryAlunos->where('status', 1)
+                        ->select(
+                            'tb_aluno.id',
+                            'tb_aluno.nome',
+                            'tb_aluno.dt_nascimento',
+                            'tb_aluno.fk_series',
+                            'tb_aluno.fk_escolas',
+                            'tb_aluno.colegio_atual'
+                        )
                         ->with(['serie', 'escola']);
                 }]);
             },

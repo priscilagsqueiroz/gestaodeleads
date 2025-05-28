@@ -1,3 +1,4 @@
+<!-- "resources/views/cadastros/index.blade.php" -->
 @extends('layouts.app')
 @section('title', 'Cadastros')
 @section('content')
@@ -102,7 +103,7 @@
                 <h5 class="modal-title" id="cadastroModalLabel">Novo Cadastro</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form id="novoCadastroForm" class="ajax-form" action="{{ route('cadastros.store') }}" method="POST">
+            <form id="cadastroFormNovo" class="ajax-form" action="{{ route('cadastros.store') }}" method="POST">
                 @csrf
                 <div class="modal-body">
                     <div class="card mb-4">

@@ -24,13 +24,19 @@ class AtendentesController extends Controller
 
     public function listar(Request $request)
     {
-        $query = User::with(['unidade', 'nivel'])
-            ->where('fk_tipo_usuario', 2);
+        // Seleciona explicitamente as colunas da tabela 'users'
+        // A relação 'unidade' será carregada para os dados e usada para joins na busca/ordenação pelo yajra/datatables
+        $query = User::with(['unidade', 'nivel']) // 'unidade' é o nome da relação no seu Model User
+            ->select('users.*') // Boa prática para evitar conflitos de nome de coluna
+            ->where('users.fk_tipo_usuario', 2); // Qualificar a coluna fk_tipo_usuario com o nome da tabela
 
         return DataTables::of($query)
             ->addColumn('acoes', function ($row) {
                 return view('partials.btnAtendentes', compact('row'))->render();
             })
+            // Com name: 'unidade.nome' no JS, yajra/laravel-datatables
+            // automaticamente tentará fazer o join com a tabela da relação 'unidade'
+            // e buscar na coluna 'nome' dessa tabela relacionada.
             ->rawColumns(['acoes'])
             ->make(true);
     }

@@ -1,3 +1,4 @@
+<!-- "resources/views/atendentes/index.blade.php" -->
 @extends('layouts.app')
 @section('title', 'Atendentes')
 @section('content')
@@ -37,7 +38,7 @@
 <!-- Modal Novo Atendente -->
 <div class="modal fade" id="atendenteModal" tabindex="-1" aria-labelledby="atendenteModalLabel" aria-hidden="true">
     <div class="modal-dialog">
-        <form id="cadastroForm" class="ajax-form" action="{{ route('atendentes.store') }}" method="POST">
+        <form id="atendenteFormNovo" class="ajax-form" action="{{ route('atendentes.store') }}" method="POST">
             @csrf
             <div class="modal-content">
                 <div class="modal-header">
@@ -89,7 +90,7 @@
 </div>
 
 <!-- Modal Editar Atendente -->
-<div class="modal fade" id="editAtendenteModal" tabindex="-1" aria-labelledby="editAtendenteModalLabel" aria-hidden="true">
+<div class="modal fade" id="atendenteFormEdit" tabindex="-1" aria-labelledby="editAtendenteModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <form id="editAtendenteForm" class="ajax-form" method="POST">
             @csrf
@@ -128,3 +129,10 @@
 </div>
 
 @endsection
+
+@push('scripts')
+<script>
+    // Define a variável JavaScript com a rota do Laravel
+    const atendentesListarRoute = "{{ route('atendentes.listar') }}";
+</script>
+@endpush

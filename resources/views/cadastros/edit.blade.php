@@ -1,3 +1,4 @@
+<!-- "resources/views/cadastros/edit.blade.php" -->
 @extends('layouts.app')
 @section('title', 'Editar Cadastro')
 @php
@@ -12,7 +13,7 @@ $hoje = date('Y-m-d');
         <button class="btn btn-sm btn-info btn-view-observacoes" data-id="{{ $cadastro->id }}" data-bs-toggle="modal" data-bs-target="#observacoesModal" title="Ver Observações"><i class="fas fa-comments"></i></button>
     </div>
 </div>
-<form id="cadastroForm" class="ajax-form" action="{{ route('cadastros.update', $cadastro->id) }}" method="POST">
+<form id="cadastroFormEdit" class="ajax-form" action="{{ route('cadastros.update', $cadastro->id) }}" method="POST">
     @csrf
     @method('PUT')
 
@@ -57,7 +58,7 @@ $hoje = date('Y-m-d');
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span><i class="fas fa-user-tie me-2"></i>Informações do Responsável</span>
                 <div>
-                    <button type="button" class="btn btn-sm btn-danger remove-responsible"><i class="fas fa-trash me-1"></i>Remover Responsável</button>
+                    <!--button type="button" class="btn btn-sm btn-danger remove-responsible"><i class="fas fa-trash me-1"></i>Remover Responsável</button-->
                 </div>
             </div>
             <div class="card-body">
@@ -96,13 +97,66 @@ $hoje = date('Y-m-d');
                                 </thead>
                                 <tbody>
                                     @foreach($responsavel_item->alunos as $aluno)
+                                    @php
+                                    // Prepara os dados do aluno de forma similar ao que o JS espera para o 'data-student-raw'
+                                    // Isso é útil para popular o modal de edição de aluno corretamente.
+                                    $dadosAlunoParaJs = [
+                                    'id' => $aluno->id,
+                                    'nome' => $aluno->nome,
+                                    'dt_nascimento' => $aluno->dt_nascimento, // O JS vai formatar se necessário
+                                    'data_nascimento' => $aluno->dt_nascimento, // Para consistência com o objeto JS
+                                    'fk_serie' => $aluno->fk_serie,
+                                    'fk_escola' => $aluno->fk_escola,
+                                    'serie_nome' => $aluno->serie->nome ?? null, // Nome da série para exibição e modal
+                                    'unidade_nome' => $aluno->escola->nome ?? null, // Nome da unidade/escola para exibição e modal
+                                    'escola' => $aluno->escola ? ['id' => $aluno->escola->id, 'nome' => $aluno->escola->nome] : null,
+                                    'serie' => $aluno->serie ? ['id' => $aluno->serie->id, 'nome' => $aluno->serie->nome] : null,
+                                    'colegio_atual' => $aluno->colegio_atual
+                                    ];
+
+                                    // Formata a data de nascimento para o formato YYYY-MM-DD para o input hidden
+                                    $dataNascimentoInputValue = '';
+                                    if ($aluno->dt_nascimento) {
+                                    try {
+                                    // Tenta parsear a data; ajuste o formato de origem se 'Y-m-d H:i:s' não for o padrão
+                                    $dataNascimentoInputValue = \Carbon\Carbon::parse($aluno->dt_nascimento)->format('Y-m-d');
+                                    } catch (\Exception $e) {
+                                    // Se falhar, tenta converter de d/m/Y para Y-m-d
+                                    try {
+                                    $dataNascimentoInputValue = \Carbon\Carbon::createFromFormat('d/m/Y', $aluno->dt_nascimento)->format('Y-m-d');
+                                    } catch (\Exception $e2) {
+                                    $dataNascimentoInputValue = $aluno->dt_nascimento; // Mantém o original se a conversão falhar
+                                    }
+                                    }
+                                    }
+                                    @endphp
                                     <tr data-student-id="{{ $aluno->id }}">
-                                        <td>{{ $aluno->nome }}</td>
-                                        <td>{{ $aluno->dt_nascimento }}</td>
-                                        <td>{{ $aluno->serie->nome }}</td>
-                                        <td>{{ $aluno->escola->nome }}</td>
-                                        <td>{{ $aluno->colegio_atual }}</td>
-                                        <input type="hidden" name="responsibles[{{ $responsavel_item->id }}][alunos][{{ $aluno->id }}][id]" value="{{ $aluno->id }}">
+                                        <td>{{ $aluno->nome ?? 'N/A' }}</td>
+                                        <td>{{ $aluno->dt_nascimento ? (\Carbon\Carbon::parse($dataNascimentoInputValue)->format('d/m/Y')) : 'N/A' }}</td>
+                                        <td>{{ $aluno->serie->nome ?? 'N/A' }}</td>
+                                        <td>{{ $aluno->escola->nome ?? 'N/A' }}</td>
+                                        <td>
+                                            {{ $aluno->colegio_atual ?? 'N/A' }}
+                                            {{-- Inputs Hidden para submissão dos dados do aluno --}}
+                                            <input type="hidden" name="responsibles[{{ $responsavel_item->id }}][alunos][{{ $aluno->id }}][id]" value="{{ $aluno->id }}">
+                                            <input type="hidden" name="responsibles[{{ $responsavel_item->id }}][alunos][{{ $aluno->id }}][nome]" value="{{ $aluno->nome ?? '' }}">
+                                            <input type="hidden" name="responsibles[{{ $responsavel_item->id }}][alunos][{{ $aluno->id }}][data_nascimento]" value="{{ $dataNascimentoInputValue }}">
+                                            <input type="hidden" name="responsibles[{{ $responsavel_item->id }}][alunos][{{ $aluno->id }}][fk_serie]" value="{{ $aluno->fk_series ?? '' }}">
+                                            <input type="hidden" name="responsibles[{{ $responsavel_item->id }}][alunos][{{ $aluno->id }}][fk_escola]" value="{{ $aluno->fk_escolas ?? '' }}">
+                                            <input type="hidden" name="responsibles[{{ $responsavel_item->id }}][alunos][{{ $aluno->id }}][colegio_atual]" value="{{ $aluno->colegio_atual ?? '' }}">
+                                        </td>
+                                        <td>
+                                            {{-- Botões de Ação --}}
+                                            <button type="button" class="btn btn-sm btn-info edit-student-btn"
+                                                data-bs-toggle="modal" data-bs-target="#addStudentModal"
+                                                data-student-raw="{{ htmlspecialchars(json_encode($dadosAlunoParaJs), ENT_QUOTES, 'UTF-8') }}"
+                                                data-responsible-id="{{ $responsavel_item->id }}">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-danger remove-student-btn">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </td>
                                     </tr>
                                     @endforeach
                                 </tbody>
