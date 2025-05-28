@@ -43,6 +43,8 @@ class CadastroController extends Controller
             ->select(
                 'tb_cadastro.id',
                 'tb_cadastro.dt_insert as data_cadastro',
+                'tb_cadastro.dt_agenda as data_agenda',
+                'tb_cadastro.horario_agenda as horario_agenda',
                 'tb_situacao.nome as situacao_nome',
                 'tb_origens.nome as origem_nome',
                 'users.name as atendente_nome',
@@ -103,15 +105,46 @@ class CadastroController extends Controller
         }
 
         return DataTables::of($query)
+            ->editColumn('data_cadastro', function ($cadastro) {
+                if ($cadastro->data_cadastro) {
+                    try {
+                        return \Carbon\Carbon::parse($cadastro->data_cadastro)->format('d/m/Y H:i');
+                    } catch (\Exception $e) {
+                        return $cadastro->data_cadastro;
+                    }
+                }
+                return '';
+            })
+            ->addColumn('agenda_completa', function ($cadastro) { // Nova "coluna virtual"
+                if ($cadastro->data_agenda && $cadastro->horario_agenda) {
+                    try {
+                        // $cadastro->data_agenda está como 'aaaa-mm-dd'
+                        // $cadastro->horario_agenda está como 'hh:mm'
+                        $dataAgenda = \Carbon\Carbon::parse($cadastro->data_agenda);
+                        return $dataAgenda->format('d/m/Y') . ' ' . $cadastro->horario_agenda;
+                    } catch (\Exception $e) {
+                        // Se houver erro no parse da data_agenda, retorna os dados brutos concatenados
+                        return $cadastro->data_agenda . ' ' . $cadastro->horario_agenda;
+                    }
+                } elseif ($cadastro->data_agenda) {
+                    // Se tiver só a data, formata só ela
+                    try {
+                        return \Carbon\Carbon::parse($cadastro->data_agenda)->format('d/m/Y');
+                    } catch (\Exception $e) {
+                        return $cadastro->data_agenda;
+                    }
+                }
+                return ''; // Retorna vazio se não tiver data_agenda
+            })
             ->addColumn('acoes', function ($cadastro) {
                 $editUrl = route('cadastros.edit', $cadastro->id);
-                // $deleteUrl = route('cadastros.destroy', $cadastro->id); // Definido mas não usado no return original
-
                 return '
-                    <a href="' . $editUrl . '" class="btn btn-sm btn-warning" title="Editar"><i class="fas fa-edit"></i></a>
-                    <button class="btn btn-sm btn-info btn-view-observacoes" data-id="' . $cadastro->id . '" data-bs-toggle="modal" data-bs-target="#observacoesModal" title="Ver Observações"><i class="fas fa-comments"></i></button>
-                    <button class="btn btn-sm btn-danger btn-delete" data-id="' . $cadastro->id . '" title="Excluir"><i class="fas fa-trash"></i></button>
-                ';
+                <a href="' . $editUrl . '" class="btn btn-sm btn-warning" title="Editar"><i class="fas fa-edit"></i></a>
+                <button class="btn btn-sm btn-info btn-view-observacoes" data-id="' . $cadastro->id . '" data-bs-toggle="modal"
+                    data-bs-target="#observacoesModal" title="Ver Observações"><i class="fas fa-comments"></i></button>
+                <button class="btn btn-sm btn-danger btn-delete" data-id="' . $cadastro->id . '" title="Excluir"><i
+                        class="fas fa-trash"></i></button>
+        ';
             })
             ->rawColumns(['acoes'])
             ->make(true);
@@ -131,7 +164,7 @@ class CadastroController extends Controller
                 'obs_id' => $obs->id, // <<< ADICIONADO ID DA OBSERVAÇÃO
                 'texto_original' => e($obs->texto), // Texto original não processado por nl2br
                 'texto' => nl2br(e($obs->texto)),
-                'data_insercao' => $obs->dt_insert ? $obs->dt_insert->format('d/m/Y H:i:s') : 'Data não disponível',
+                'data_insercao' => $obs->dt_insert ? $obs->dt_insert->format('d/m/Y H:i') : 'Data não disponível',
                 'data_insercao_raw' => $obs->dt_insert ? $obs->dt_insert->toIso8601String() : null, // <<< ADICIONADO DATA RAW
                 'usuario_nome' => $obs->usuario ? e($obs->usuario->name) : 'Usuário desconhecido'
             ];

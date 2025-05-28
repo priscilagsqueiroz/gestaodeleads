@@ -24,12 +24,10 @@ body {
 
 a {
   color: var(--primary-dark);
-  text-decoration: none;
 }
 
 a:hover {
   color: var(--primary);
-  text-decoration: none;
 }
 
 .btn-primary {

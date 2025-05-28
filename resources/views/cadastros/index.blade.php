@@ -82,9 +82,9 @@
                         <th></th>
                         <th>Código</th>
                         <th>Responsável</th>
-                        <th>E-mail</th>
                         <th>WhatsApp</th>
                         <th>Atendente</th>
+                        <th>Agendado para</th>
                         <th>Origem</th>
                         <th>Situação</th>
                         <th>Data de Cadastro</th>

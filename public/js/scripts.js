@@ -891,9 +891,40 @@ $(document).ready(function () {
                 { className: 'dt-control', orderable: false, data: null, defaultContent: '' },
                 { data: 'id', name: 'tb_cadastro.id' },
                 { data: 'responsavel_nome', name: 'tb_responsavel.nome' },
-                { data: 'responsavel_email', name: 'tb_responsavel.email' },
-                { data: 'responsavel_celular', name: 'tb_responsavel.celular' },
-                { data: 'atendente_nome', name: 'users.name' },
+                {
+                    data: 'responsavel_celular',
+                    name: 'tb_responsavel.celular',
+                    render: function (data, type, row) {
+                        if (type === 'display' && data) {
+                            // Remove caracteres não numéricos do telefone (parênteses, traços, espaços)
+                            // Assumimos que o 'data' é o número local (Ex: (11) 98765-4321 ou 11987654321)
+                            // e que precisamos adicionar o código do país '55'
+                            const numeroLimpo = String(data).replace(/\D/g, '');
+
+                            if (numeroLimpo.length >= 10) { // Verifica se tem pelo menos DDD + número (10 ou 11 dígitos)
+                                const whatsappUrl = 'https://api.whatsapp.com/send?phone=55' + numeroLimpo;
+                                // O 'data' original (com formatação) é usado como texto do link para melhor leitura
+                                return '<a href="' + whatsappUrl + '" target="_blank" class="link-success link-offset-2 link-underline-opacity-25 link-underline-opacity-100-hover">' + data + '</a>';
+                            } else {
+                                return data; // Retorna o dado original se não parecer um número válido para linkar
+                            }
+                        }
+                        return data; // Retorna o dado original para ordenação, filtro, etc.
+                    }
+                },
+                {
+                    data: 'atendente_nome',
+                    name: 'users.name',
+                    render: function (data, type, row) {
+                        // 'data' aqui é o valor de 'atendente_nome'
+                        // Verifica se o dado existe para evitar "<strong>null</strong>" ou "<strong>undefined</strong>"
+                        if (type === 'display' && data) {
+                            return '<strong>' + data + '</strong>';
+                        }
+                        return data; // Retorna o dado original para outros tipos (sort, filter, etc.)
+                    }
+                },
+                { data: 'agenda_completa', name: 'tb_cadastro.dt_agenda' },
                 { data: 'origem_nome', name: 'tb_origens.nome' },
                 { data: 'situacao_nome', name: 'tb_situacao.nome' },
                 { data: 'data_cadastro', name: 'tb_cadastro.dt_insert' },

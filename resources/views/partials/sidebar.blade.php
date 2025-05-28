@@ -1,18 +1,18 @@
 <div class="sidebar">
     <div class="sidebar-header">
-        <a href="#" class="sidebar-brand">
+        <a href="./" class="sidebar-brand link-underline link-underline-opacity-0">
             <i class="fas fa-bolt"></i> YellowDash
         </a>
     </div>
 
     <ul class="sidebar-menu">
         <li>
-            <a href="{{ route('dashboard.index') }}" class="{{ request()->routeIs('dashboard.index') ? 'active' : '' }}">
+            <a href="{{ route('dashboard.index') }}" class="{{ request()->routeIs('dashboard.index') ? 'active link-underline link-underline-opacity-0' : 'link-underline link-underline-opacity-0' }}">
                 <i class="fas fa-home"></i> Dashboard
             </a>
         </li>
         <li>
-            <a href="{{ route('cadastros.index') }}" class="{{ request()->routeIs('cadastros.index') || request()->is('cadastros/*') ? 'active' : '' }}">
+            <a href="{{ route('cadastros.index') }}" class="{{ request()->routeIs('cadastros.index') || request()->is('cadastros/*') ? 'active link-underline link-underline-opacity-0' : 'link-underline link-underline-opacity-0' }}">
                 <i class="fas fa-chart-line"></i> Cadastros
             </a>
         </li>
@@ -37,7 +37,7 @@
             </a>
         </li>
         <li>
-            <a href="{{ route('atendentes.index') }}" class="{{ request()->routeIs('atendentes.index') || request()->is('atendentes/*') ? 'active' : '' }}">
+            <a href="{{ route('atendentes.index') }}" class="{{ request()->routeIs('atendentes.index') || request()->is('atendentes/*') ? 'active link-underline link-underline-opacity-0' : 'link-underline link-underline-opacity-0' }}">
                 <i class="fas fa-users"></i> Atendentes
             </a>
         </li>
