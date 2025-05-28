@@ -49,6 +49,24 @@ $hoje = date('Y-m-d');
                     </select>
                 </div>
             </div>
+            <div class="row g-3 mt-3"> {{-- Adicionado mt-3 para um pequeno espaçamento --}}
+                <div class="col-md-4">
+                    <label for="data_visita" class="form-label">Data da Visita</label>
+                    <input type="date" class="form-control" id="data_visita" name="data_visita"
+                           value="{{ $cadastro->dt_agenda ? \Carbon\Carbon::parse($cadastro->dt_agenda)->format('Y-m-d') : '' }}">
+                </div>
+                <div class="col-md-4">
+                    <label for="horario" class="form-label">Horário da Visita</label>
+                    {{-- O input type="time" espera HH:MM ou HH:MM:SS. Se seu banco armazena assim, pode ser direto. --}}
+                    <input type="time" class="form-control" id="horario" name="horario" pattern="[0-2][0-9]:[0-5][0-9]"
+                           value="{{ $cadastro->horario_agenda ?? '' }}">
+                </div>
+                <div class="col-md-4">
+                    <label for="data_retorno" class="form-label">Data de Retorno</label>
+                    <input type="date" class="form-control" id="data_retorno" name="data_retorno"
+                           value="{{ $cadastro->dt_retorno ? \Carbon\Carbon::parse($cadastro->dt_retorno)->format('Y-m-d') : '' }}">
+                </div>
+            </div>
         </div>
     </div>
 

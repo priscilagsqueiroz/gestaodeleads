@@ -311,39 +311,100 @@ class CadastroController extends Controller
         }
     }
 
+    public function edit($id)
+    {
+        $cadastro = Cadastro::with([
+            // Carregar a COLEÇÃO de responsáveis ativos
+            'responsaveis' => function ($queryResponsaveis) {
+                // O método 'responsaveis()' no Model Cadastro já tem ->where('tb_responsavel.status', 1).
+                // O Global Scope no Model Responsavel também já filtra por status=1.
+                // Então, a condição de status para os Responsavel aqui é redundante, mas não prejudica.
+                // $queryResponsaveis->where('status', 1); // Pode até remover se o global scope e a definição da relação já cuidam disso.
+
+                $queryResponsaveis->with(['alunos' => function ($queryAlunos) {
+                    $queryAlunos->where('status', 1)
+                        ->select(
+                            'tb_aluno.id',
+                            'tb_aluno.nome',
+                            'tb_aluno.dt_nascimento',
+                            'tb_aluno.fk_series',
+                            'tb_aluno.fk_escolas',
+                            'tb_aluno.colegio_atual'
+                        )
+                        ->with(['serie', 'escola']);
+                }]);
+            },
+            'situacao',
+            'origem',
+            'atendente' // Este é o User que fez o cadastro, ok
+        ])->findOrFail($id);
+
+        $unidades = Escola::where('status', 1)->orderBy('nome')->get();
+        $situacoes = Situacao::where('status', 1)->orderBy('nome')->get();
+        $origens = Origem::where('status', 1)->orderBy('nome')->get();
+        $atendentes = User::whereHas('nivel', function ($query) {
+            $query->where('nome', 'Atendente');
+        })->whereNull('users.deleted_at')->orderBy('name')->get();
+
+        // Antes de retornar a view, para ter certeza absoluta, você pode inspecionar:
+        // dd($cadastro->responsaveis);
+
+        return view('cadastros.edit', compact('cadastro', 'unidades', 'situacoes', 'origens', 'atendentes'));
+    }
+
     public function update(Request $request, $id)
     {
         $cadastro = Cadastro::findOrFail($id);
 
-        $request->validate([
+        // 1. LOG INICIAL: Ver o que está chegando no request
+        //Log::debug('CadastroController@update: Dados brutos recebidos para o ID ' . $id, $request->all());
+
+        $validatedData = $request->validate([
             'fk_atendente' => 'required|exists:users,id',
             'fk_origens' => 'required|exists:tb_origens,id',
             'fk_situacao' => 'required|exists:tb_situacao,id',
+            'data_visita' => 'nullable|date',
+            'horario' => 'nullable|string|max:5', // HH:MM. Se seu input pode enviar HH:MM:SS, ajuste para max:8
+            'data_retorno' => 'nullable|date',
             'responsibles' => 'required|array|min:1',
-            'responsibles.*.id' => 'nullable|string', // Pode ser ID existente ou 'new_X'
+            'responsibles.*.id' => 'nullable|string',
             'responsibles.*.nome' => 'required|string|max:255',
             'responsibles.*.email' => 'nullable|email|max:255',
             'responsibles.*.celular' => 'nullable|string|max:20',
             'responsibles.*.alunos' => 'array',
-            'responsibles.*.alunos.*.id' => 'nullable|string', // Pode ser ID existente ou 'new_X'
+            'responsibles.*.alunos.*.id' => 'nullable|string',
             'responsibles.*.alunos.*.nome' => 'required|string|max:255',
             'responsibles.*.alunos.*.data_nascimento' => 'required|date',
             'responsibles.*.alunos.*.fk_escola' => 'required|exists:tb_escolas,id',
             'responsibles.*.alunos.*.fk_serie' => 'required|exists:tb_series,id',
             'responsibles.*.alunos.*.colegio_atual' => 'nullable|string|max:255',
-            'observacoes' => 'nullable|string',
         ]);
+
+        // 2. LOG DOS DADOS VALIDADOS:
+        //Log::debug('CadastroController@update: Dados validados para o ID ' . $id, $validatedData);
 
         DB::beginTransaction();
         try {
-            $cadastro->update([
-                // CORRIGIDO: Atualizar coluna 'atendente'
-                'atendente' => $request->fk_atendente,
-                'fk_origens' => $request->fk_origens,
-                'fk_situacao' => $request->fk_situacao,
-                'observacoes' => $request->observacoes,
-                // 'dt_update' => now(), // Se a tabela cadastro tiver dt_update
-            ]);
+            $updatePayload = [
+                'atendente' => $request->input('fk_atendente'), // Ou $validatedData['fk_atendente']
+                'fk_origens' => $request->input('fk_origens'),   // Ou $validatedData['fk_origens']
+                'fk_situacao' => $request->input('fk_situacao'), // Ou $validatedData['fk_situacao']
+
+                // Usando $request->input() para garantir que mesmo campos não enviados (se vazios)
+                // sejam tratados como null (se a validação 'nullable' estiver presente).
+                // A validação 'date' do Laravel converte strings vazias para null para campos de data.
+                'dt_agenda' => $request->input('data_visita'),
+                'horario_agenda' => $request->input('horario'), // Se vier vazio e for nullable, deve ser null. varchar aceita string vazia.
+                'dt_retorno' => $request->input('data_retorno'),
+            ];
+
+            // 3. LOG DO PAYLOAD DE ATUALIZAÇÃO:
+            //Log::debug('CadastroController@update: Payload para $cadastro->update() ID ' . $id, $updatePayload);
+            
+            $cadastro->update($updatePayload);
+            
+            // 4. LOG APÓS UPDATE (OPCIONAL, PARA VERIFICAR O ESTADO DO MODEL):
+            //Log::debug('CadastroController@update: Estado do cadastro após update (antes do commit) ID ' . $id, $cadastro->toArray());
 
             $existingResponsiblePivots = DB::table('tb_responsavel_has_tb_cadastro')
                 ->where('fk_cadastro', $cadastro->id)
@@ -492,6 +553,8 @@ class CadastroController extends Controller
             }
 
             DB::commit();
+            // 5. LOG FINAL
+            //Log::info('CadastroController@update: Cadastro ID ' . $id . ' atualizado com sucesso no banco.');
             return response()->json(['success' => true, 'message' => 'Cadastro atualizado com sucesso!']);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -599,47 +662,6 @@ class CadastroController extends Controller
             'responsaveis' => $outrosResponsaveis, // Lista de outros responsáveis
             'main_responsavel_id' => $mainResponsavel ? $mainResponsavel->id : null,
         ]);
-    }
-
-    public function edit($id)
-    {
-        $cadastro = Cadastro::with([
-            // Carregar a COLEÇÃO de responsáveis ativos
-            'responsaveis' => function ($queryResponsaveis) {
-                // O método 'responsaveis()' no Model Cadastro já tem ->where('tb_responsavel.status', 1).
-                // O Global Scope no Model Responsavel também já filtra por status=1.
-                // Então, a condição de status para os Responsavel aqui é redundante, mas não prejudica.
-                // $queryResponsaveis->where('status', 1); // Pode até remover se o global scope e a definição da relação já cuidam disso.
-
-                $queryResponsaveis->with(['alunos' => function ($queryAlunos) {
-                    $queryAlunos->where('status', 1)
-                        ->select(
-                            'tb_aluno.id',
-                            'tb_aluno.nome',
-                            'tb_aluno.dt_nascimento',
-                            'tb_aluno.fk_series',
-                            'tb_aluno.fk_escolas',
-                            'tb_aluno.colegio_atual'
-                        )
-                        ->with(['serie', 'escola']);
-                }]);
-            },
-            'situacao',
-            'origem',
-            'atendente' // Este é o User que fez o cadastro, ok
-        ])->findOrFail($id);
-
-        $unidades = Escola::where('status', 1)->orderBy('nome')->get();
-        $situacoes = Situacao::where('status', 1)->orderBy('nome')->get();
-        $origens = Origem::where('status', 1)->orderBy('nome')->get();
-        $atendentes = User::whereHas('nivel', function ($query) {
-            $query->where('nome', 'Atendente');
-        })->whereNull('users.deleted_at')->orderBy('name')->get();
-
-        // Antes de retornar a view, para ter certeza absoluta, você pode inspecionar:
-        // dd($cadastro->responsaveis);
-
-        return view('cadastros.edit', compact('cadastro', 'unidades', 'situacoes', 'origens', 'atendentes'));
     }
 
     public function opcoes()

@@ -829,9 +829,9 @@ $(document).ready(function () {
             fk_atendente: $formSubmetido.find('[name="fk_atendente"]').val(),
             fk_origens: $formSubmetido.find('[name="fk_origens"]').val(),
             fk_situacao: $formSubmetido.find('[name="fk_situacao"]').val(),
-            // Observações são tratadas em modal separado, não inclusas aqui diretamente,
-            // a menos que haja um campo de observação principal no form de edição.
-            // observacoes: $formSubmetido.find('[name="observacoes"]').val(),
+            data_visita: $formSubmetido.find('[name="data_visita"]').val(),
+            horario: $formSubmetido.find('[name="horario"]').val(),
+            data_retorno: $formSubmetido.find('[name="data_retorno"]').val(),
             responsibles: dadosResponsaveis
         };
 
@@ -876,7 +876,6 @@ $(document).ready(function () {
             }
         });
     });
-
 
     // --- DataTable para Cadastros ---
     let tabelaCadastrosRef; // Mantém uma referência
