@@ -15,7 +15,7 @@
 <div class="card mb-4">
     <div class="card-header d-flex justify-content-between align-items-center">
         <span>Filtros</span>
-        <button class="btn btn-sm btn-outline-dark" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFilters">
+        <button class="btn btn-sm btn-outline-dark" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFilters" data-bs-title="Exibir os filtros">
             <i class="fas fa-filter"></i>
         </button>
     </div>
@@ -275,8 +275,9 @@
 @push('scripts')
 <script>
     // Define a variável JavaScript com a rota do Laravel
-    const cadastrosListarRoute = "{{ route('cadastros.listar') }}";
     const cadastrosIndexRoute = "{{ route('cadastros.index') }}";
+    const cadastrosOpcoesRoute = "{{ route('cadastros.opcoes') }}";
+    const cadastrosListarRoute = "{{ route('cadastros.listar') }}";
     const rotaObservacoesBase = "{{ route('cadastros.observacoes', ['cadastro' => ':id']) }}";
     const rotaObservacoesStoreBase = "{{ route('cadastros.observacoes.store', ['cadastro' => ':id']) }}";
 </script>

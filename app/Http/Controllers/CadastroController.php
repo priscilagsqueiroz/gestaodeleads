@@ -104,6 +104,7 @@ class CadastroController extends Controller
             $query->whereDate('tb_cadastro.dt_insert', '<=', $request->data_fim);
         }
 
+
         return DataTables::of($query)
             ->editColumn('data_cadastro', function ($cadastro) {
                 if ($cadastro->data_cadastro) {
@@ -136,21 +137,18 @@ class CadastroController extends Controller
                 }
                 return ''; // Retorna vazio se não tiver data_agenda
             })
-            ->addColumn('acoes', function ($cadastro) {
-                $editUrl = route('cadastros.edit', $cadastro->id);
-                return '
-                <a href="' . $editUrl . '" class="btn btn-sm btn-warning" title="Editar"><i class="fas fa-edit"></i></a>
-                <button class="btn btn-sm btn-info btn-view-observacoes" data-id="' . $cadastro->id . '" data-bs-toggle="modal"
-                    data-bs-target="#observacoesModal" title="Ver Observações"><i class="fas fa-comments"></i></button>
-                <button class="btn btn-sm btn-danger btn-delete" data-id="' . $cadastro->id . '" title="Excluir"><i
-                        class="fas fa-trash"></i></button>
-        ';
+            ->addColumn('acoes', function ($cadastro) { // $cadastro aqui é o objeto da linha atual da tabela
+                $editUrl = route('cadastros.edit', $cadastro->id); // Gera a URL de edição
+
+                return view('partials.btnCadastros', [
+                    'editUrl' => $editUrl, // Passa a URL de edição para a view
+                    'id' => $cadastro->id   // Passa o ID do cadastro para a view
+                ])->render();
             })
             ->rawColumns(['acoes'])
             ->make(true);
     }
 
-    // Em app/Http/Controllers/CadastroController.php
     public function getObservacoes(Cadastro $cadastro)
     {
         $observacoes = $cadastro->observacoes()->with('usuario')->get();

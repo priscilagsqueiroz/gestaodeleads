@@ -10,7 +10,7 @@ $hoje = date('Y-m-d');
         <h2>Editar Cadastro</h2>
     </div>
     <div class="col-6 d-flex justify-content-end align-items-center">
-        <button class="btn btn-sm btn-info btn-view-observacoes" data-id="{{ $cadastro->id }}" data-bs-toggle="modal" data-bs-target="#observacoesModal" title="Ver Observações"><i class="fas fa-comments"></i></button>
+        <button class="btn btn-sm btn-info btn-view-observacoes" data-id="{{ $cadastro->id }}" data-bs-toggle="modal" data-bs-target="#observacoesModal" data-bs-title="Ver observações"><i class="fas fa-comments"></i></button>
     </div>
 </div>
 <form id="cadastroFormEdit" class="ajax-form" action="{{ route('cadastros.update', $cadastro->id) }}" method="POST">
@@ -94,6 +94,7 @@ $hoje = date('Y-m-d');
                                     <th>Série</th>
                                     <th>Unidade</th>
                                     <th>Colégio Atual</th>
+                                    <th>Ações</th>
                                 </thead>
                                 <tbody>
                                     @foreach($responsavel_item->alunos as $aluno)
@@ -150,10 +151,10 @@ $hoje = date('Y-m-d');
                                             <button type="button" class="btn btn-sm btn-info edit-student-btn"
                                                 data-bs-toggle="modal" data-bs-target="#addStudentModal"
                                                 data-student-raw="{{ htmlspecialchars(json_encode($dadosAlunoParaJs), ENT_QUOTES, 'UTF-8') }}"
-                                                data-responsible-id="{{ $responsavel_item->id }}">
+                                                data-responsible-id="{{ $responsavel_item->id }}" data-bs-title="Editar">
                                                 <i class="fas fa-edit"></i>
                                             </button>
-                                            <button type="button" class="btn btn-sm btn-danger remove-student-btn">
+                                            <button type="button" class="btn btn-sm btn-danger remove-student-btn" data-bs-toggle="tooltip" data-bs-title="Excluir">
                                                 <i class="fas fa-trash"></i>
                                             </button>
                                         </td>

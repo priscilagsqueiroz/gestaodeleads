@@ -130,7 +130,7 @@ function formatarDetalhesLinha(dadosDetalhes) {
     // Alunos Associados
     if (dadosDetalhes.alunos && dadosDetalhes.alunos.length > 0) {
         html += `
-        <h6 class="mb-2 text-primary"><i class="fas fa-user-graduate me-2"></i>Alunos Associados</h6>
+        <h6 class="mb-2 text-dark"><i class="fas fa-user-graduate me-2"></i>Alunos Associados</h6>
         <div class="table-responsive">
             <table class="table table-sm table-bordered table-striped mb-3">
                 <thead class="table-light">
@@ -236,6 +236,14 @@ $(document).ready(function () {
     // Contadores para gerar IDs temporários no lado do cliente
     let contadorResponsaveis = 0;
     let contadorAlunos = 0; // Usado para o prefixo 'new_S...'
+
+    // Inicializa TODOS os tooltips na página que têm data-bs-title
+    const elementsWithTooltipTitle = [].slice.call(document.querySelectorAll('[data-bs-title]'));
+    elementsWithTooltipTitle.map(function (tooltipTriggerEl) {
+        if (!bootstrap.Tooltip.getInstance(tooltipTriggerEl)) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        }
+    });
 
     // --- Funções Auxiliares ---
     /**
@@ -343,7 +351,7 @@ $(document).ready(function () {
                 console.error("Erro ao carregar opções de filtro para cadastros:", textStatus, errorThrown, jqXHR.responseText);
             });
         } else {
-            // console.warn("A variável 'cadastrosOpcoesRoute' não está definida. Os filtros de cadastro podem não ser populados.");
+            console.warn("A variável 'cadastrosOpcoesRoute' não está definida. Os filtros de cadastro podem não ser populados.");
         }
     }
 
@@ -395,9 +403,9 @@ $(document).ready(function () {
         <div class="card mb-4 responsible-card" data-responsible-id="${idFinalResponsavel}">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span><i class="fas fa-user-tie me-2"></i>Informações do Responsável</span>
-                <div>
+                 <!-- <div>
                     ${exibirBotaoRemover ? `<button type="button" class="btn btn-sm btn-danger remove-responsible"><i class="fas fa-trash me-1"></i>Remover Responsável</button>` : ''}
-                </div>
+                </div> -->
             </div>
             <div class="card-body">
                 <div class="row g-3 mb-4">
@@ -890,7 +898,22 @@ $(document).ready(function () {
             columns: [
                 { className: 'dt-control', orderable: false, data: null, defaultContent: '' },
                 { data: 'id', name: 'tb_cadastro.id' },
-                { data: 'responsavel_nome', name: 'tb_responsavel.nome' },
+                {
+                    data: 'responsavel_nome',
+                    name: 'tb_responsavel.nome',
+                    render: function (data, type, row) {
+                        // 'data' é o responsavel_nome
+                        // 'row' é o objeto com todos os dados da linha, incluindo row.responsavel_email
+                        if (type === 'display' && data) { // Aplicar apenas para exibição e se houver nome
+                            if (row.responsavel_email) { // Verifica se existe um e-mail para este responsável
+                                return '<a href="mailto:' + row.responsavel_email + '"target="_blank" class="link-dark link-offset-2 link-underline-opacity-25 link-underline-opacity-100-hover" data-bs-toggle="tooltip" data-bs-title="Clique para enviar um e-mail">' + data + '</a>';
+                            } else {
+                                return data; // Retorna apenas o nome se não houver e-mail
+                            }
+                        }
+                        return data; // Retorna o dado original para ordenação, filtro, etc.
+                    }
+                },
                 {
                     data: 'responsavel_celular',
                     name: 'tb_responsavel.celular',
@@ -904,7 +927,7 @@ $(document).ready(function () {
                             if (numeroLimpo.length >= 10) { // Verifica se tem pelo menos DDD + número (10 ou 11 dígitos)
                                 const whatsappUrl = 'https://api.whatsapp.com/send?phone=55' + numeroLimpo;
                                 // O 'data' original (com formatação) é usado como texto do link para melhor leitura
-                                return '<a href="' + whatsappUrl + '" target="_blank" class="link-success link-offset-2 link-underline-opacity-25 link-underline-opacity-100-hover">' + data + '</a>';
+                                return '<a href="' + whatsappUrl + '" target="_blank" class="link-dark link-offset-2 link-underline-opacity-25 link-underline-opacity-100-hover" data-bs-toggle="tooltip" data-bs-title="Ir para o WhatsApp">' + data + '</a>';
                             } else {
                                 return data; // Retorna o dado original se não parecer um número válido para linkar
                             }
@@ -930,9 +953,39 @@ $(document).ready(function () {
                 { data: 'data_cadastro', name: 'tb_cadastro.dt_insert' },
                 { data: 'acoes', name: 'acoes', orderable: false, searchable: false }
             ],
+            columnDefs: [ // Adicione ou modifique columnDefs
+                {
+                    targets: 0, // O índice da sua coluna 'dt-control' (a primeira coluna é 0)
+                    createdCell: function (td, cellData, rowData, row, col) {
+                        $(td).attr('data-bs-toggle', 'tooltip');
+                        $(td).attr('data-bs-placement', 'top'); // Ou outra posição desejada
+                        $(td).attr('data-bs-title', 'Clique para ver/ocultar detalhes'); // Seu texto do tooltip
+                    }
+                }
+            ],
             order: [[1, 'desc']],
             language: { url: '/js/pt-BR.json' }, // Certifique-se que este arquivo existe
-            responsive: true
+            responsive: true,
+            // Adicione o evento drawCallback para inicializar os tooltips
+            drawCallback: function (settings) {
+                // Inicializa todos os tooltips na tabela que ainda não foram inicializados
+                const tooltipTriggerList = [].slice.call(this.api().table().body().querySelectorAll('[data-bs-toggle="tooltip"]'));
+                tooltipTriggerList.map(function (tooltipTriggerEl) {
+                    // Verifica se já não existe uma instância de tooltip para evitar múltiplas inicializações
+                    if (!bootstrap.Tooltip.getInstance(tooltipTriggerEl)) {
+                        return new bootstrap.Tooltip(tooltipTriggerEl);
+                    }
+                });
+
+                // Adicional: Se você quiser que os botões de modal DENTRO da tabela também tenham tooltips
+                // e eles só têm data-bs-title (sem data-bs-toggle="tooltip")
+                const modalButtonsInTableWithTitle = [].slice.call(this.api().table().body().querySelectorAll('[data-bs-toggle="modal"][data-bs-title]'));
+                modalButtonsInTableWithTitle.map(function (modalButtonEl) {
+                    if (!bootstrap.Tooltip.getInstance(modalButtonEl)) {
+                        new bootstrap.Tooltip(modalButtonEl);
+                    }
+                });
+            }
         });
 
         // Listener para expandir/recolher detalhes no DataTable
@@ -1261,7 +1314,30 @@ $(document).ready(function () {
                 { data: 'email', name: 'users.email' },
                 { data: 'unidade.nome', name: 'unidade.nome', defaultContent: 'N/A' },
                 { data: 'acoes', orderable: false, searchable: false }
-            ]
+            ],
+            order: [[1, 'desc']],
+            language: { url: '/js/pt-BR.json' }, // Certifique-se que este arquivo existe
+            responsive: true,
+            // Adicione o evento drawCallback para inicializar os tooltips
+            drawCallback: function (settings) {
+                // Inicializa todos os tooltips na tabela que ainda não foram inicializados
+                const tooltipTriggerList = [].slice.call(this.api().table().body().querySelectorAll('[data-bs-toggle="tooltip"]'));
+                tooltipTriggerList.map(function (tooltipTriggerEl) {
+                    // Verifica se já não existe uma instância de tooltip para evitar múltiplas inicializações
+                    if (!bootstrap.Tooltip.getInstance(tooltipTriggerEl)) {
+                        return new bootstrap.Tooltip(tooltipTriggerEl);
+                    }
+                });
+
+                // Adicional: Se você quiser que os botões de modal DENTRO da tabela também tenham tooltips
+                // e eles só têm data-bs-title (sem data-bs-toggle="tooltip")
+                const modalButtonsInTableWithTitle = [].slice.call(this.api().table().body().querySelectorAll('[data-bs-toggle="modal"][data-bs-title]'));
+                modalButtonsInTableWithTitle.map(function (modalButtonEl) {
+                    if (!bootstrap.Tooltip.getInstance(modalButtonEl)) {
+                        new bootstrap.Tooltip(modalButtonEl);
+                    }
+                });
+            }
         });
 
         // NOVO: Submissão do formulário de NOVO atendente
