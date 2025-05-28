@@ -7,12 +7,12 @@
 
     <ul class="sidebar-menu">
         <li>
-            <a href="{{ route('dashboard.index') }}" class="active">
+            <a href="{{ route('dashboard.index') }}" class="{{ request()->routeIs('dashboard.index') ? 'active' : '' }}">
                 <i class="fas fa-home"></i> Dashboard
             </a>
         </li>
         <li>
-            <a href="{{ route('cadastros.index') }}">
+            <a href="{{ route('cadastros.index') }}" class="{{ request()->routeIs('cadastros.index') || request()->is('cadastros/*') ? 'active' : '' }}">
                 <i class="fas fa-chart-line"></i> Cadastros
             </a>
         </li>
@@ -37,7 +37,7 @@
             </a>
         </li>
         <li>
-            <a href="{{ route('atendentes.index') }}">
+            <a href="{{ route('atendentes.index') }}" class="{{ request()->routeIs('atendentes.index') || request()->is('atendentes/*') ? 'active' : '' }}">
                 <i class="fas fa-bell"></i> Atendentes
             </a>
         </li>
