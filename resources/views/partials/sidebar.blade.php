@@ -38,7 +38,7 @@
         </li>
         <li>
             <a href="{{ route('atendentes.index') }}" class="{{ request()->routeIs('atendentes.index') || request()->is('atendentes/*') ? 'active' : '' }}">
-                <i class="fas fa-bell"></i> Atendentes
+                <i class="fas fa-users"></i> Atendentes
             </a>
         </li>
         <li>
