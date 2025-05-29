@@ -137,6 +137,23 @@
                                         @endforeach
                                     </select>
                                 </div>
+                            </div>
+                            <div class="row g-3 mt-3">
+                                <div class="col-md-4">
+                                    <label for="data_visita" class="form-label">Data da Visita</label>
+                                    <input type="date" class="form-control" id="data_visita" name="data_visita"
+                                        value="">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="horario" class="form-label">Horário da Visita</label>
+                                    <input type="time" class="form-control" id="horario" name="horario" pattern="[0-2][0-9]:[0-5][0-9]"
+                                        value="">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="data_retorno" class="form-label">Data de Retorno</label>
+                                    <input type="date" class="form-control" id="data_retorno" name="data_retorno"
+                                        value="">
+                                </div>
                                 <div class="col-12">
                                     <label for="observacoesNovo" class="form-label">Observações</label>
                                     <textarea class="form-control" id="observacoesNovo" name="observacoes" rows="3"></textarea>

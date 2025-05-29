@@ -776,12 +776,14 @@ $(document).ready(function () {
             return;
         }
 
-
         const dadosCadastroFinal = {
             _token: $formSubmetido.find('input[name="_token"]').val(),
             fk_atendente: $formSubmetido.find('[name="fk_atendente"]').val(),
             fk_origens: $formSubmetido.find('[name="fk_origens"]').val(),
             fk_situacao: $formSubmetido.find('[name="fk_situacao"]').val(),
+            data_visita: $formSubmetido.find('[name="data_visita"]').val(),
+            horario: $formSubmetido.find('[name="horario"]').val(),
+            data_retorno: $formSubmetido.find('[name="data_retorno"]').val(),
             observacoes: $formSubmetido.find('[name="observacoes"]').val(),
             responsibles: dadosResponsaveis
         };

@@ -206,6 +206,9 @@ class CadastroController extends Controller
                 'fk_atendente' => 'required|exists:users,id',
                 'fk_origens' => 'required|exists:tb_origens,id',
                 'fk_situacao' => 'required|exists:tb_situacao,id',
+                'data_visita' => 'nullable|date',
+                'horario' => 'nullable|string|max:5',
+                'data_retorno' => 'nullable|date',
                 'responsibles' => 'required|array|min:1',
                 'responsibles.*.nome' => 'required|string|max:255',
                 'responsibles.*.email' => 'nullable|email|max:255',
@@ -230,6 +233,9 @@ class CadastroController extends Controller
                 'atendente' => $validatedData['fk_atendente'], // Coluna 'atendente' na tb_cadastro
                 'fk_origens' => $validatedData['fk_origens'],
                 'fk_situacao' => $validatedData['fk_situacao'],
+                'dt_agenda' => $request->input('data_visita'), // Pega do request, será null se vazio e validado como nullable
+                'horario_agenda' => $request->input('horario'), // Se vazio, será null ou string vazia dependendo do DB e mutators
+                'dt_retorno' => $request->input('data_retorno'), // Pega do request
                 'fk_responsavel' => null, // Será atualizado depois
                 'status' => 1,
                 // 'fk_indique' => $validatedData['fk_indique'] ?? 1, // Se você tiver esse campo no form
@@ -237,6 +243,9 @@ class CadastroController extends Controller
                 // dt_insert e dt_update são gerenciados pelo Eloquent (constantes no modelo)
             ]);
 
+            // Log para depuração (opcional, remova depois de testar)
+            Log::info('Novo cadastro criado (antes de responsáveis):', $cadastro->toArray());
+            
             // Salva a observação na tabela tb_observacao, se houver
             if (!empty($validatedData['observacoes'])) {
                 Observacao::create([
