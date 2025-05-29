@@ -11,4 +11,5 @@ class Origem extends Model
     use HasFactory;
     protected $table = 'tb_origens';
     protected $fillable = ['nome'];
+    public $timestamps = false; // Adicione esta linha
 }

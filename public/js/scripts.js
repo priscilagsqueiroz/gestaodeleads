@@ -225,6 +225,7 @@ $(document).ready(function () {
 
     const $elementoTabelaCadastros = $('#cadastros-table');
     const $elementoTabelaAtendentes = $('#atendentesTable');
+    const $elementoTabelaOrigens = $('#origemTable');
 
     // ATUALIZADO: IDs dos formulários de atendente
     const $modalNovoAtendente = $('#atendenteModal');
@@ -232,6 +233,11 @@ $(document).ready(function () {
     const $modalEditarAtendente = $('#atendenteFormEdit');
     const $formularioEditarAtendente = $('#editAtendenteForm');
 
+    // ATUALIZADO: IDs dos formulários de origem
+    const $modalNovoOrigem = $('#origemModal');
+    const $formularioNovoOrigem = $('#origemFormNovo');
+    const $modalEditarOrigem = $('#origemFormEdit');
+    const $formularioEditarOrigem = $('#editOrigemForm');
 
     // Contadores para gerar IDs temporários no lado do cliente
     let contadorResponsaveis = 0;
@@ -1316,7 +1322,6 @@ $(document).ready(function () {
                 { data: 'unidade.nome', name: 'unidade.nome', defaultContent: 'N/A' },
                 { data: 'acoes', orderable: false, searchable: false }
             ],
-            order: [[1, 'desc']],
             language: { url: '/js/pt-BR.json' }, // Certifique-se que este arquivo existe
             responsive: true,
             // Adicione o evento drawCallback para inicializar os tooltips
@@ -1476,6 +1481,190 @@ $(document).ready(function () {
                     },
                     error: function (xhr) {
                         alert('Erro ao excluir o atendente: ' + (xhr.responseJSON?.message || xhr.statusText));
+                    }
+                });
+            }
+        });
+    }
+
+    
+    // --- DataTable e AJAX para Origens ---
+    let tabelaOrigensRef;
+    if ($elementoTabelaOrigens.length) {
+        tabelaOrigensRef = $elementoTabelaOrigens.DataTable({
+            processing: true,
+            serverSide: true,
+            responsive: true,
+            ajax: {
+                url: typeof origensListarRoute !== 'undefined' ? origensListarRoute : '/origens/listar',
+                error: function (xhr, error, thrown) {
+                    console.error("Erro no AJAX da DataTable de Origens:", xhr.responseText);
+                    console.log("XHR Object:", xhr); // Informações detalhadas do erro
+                    console.log("Error string:", error);
+                    console.log("Thrown error:", thrown);
+                    alert("Erro ao carregar a lista de origens. Verifique o console para mais detalhes.");
+                }
+            },
+            language: { url: '/js/pt-BR.json' },
+            dom: 'Bfrtip',
+            buttons: [
+                { extend: 'excel', text: '<i class="fas fa-file-excel me-1"></i> Excel', className: 'btn btn-sm', exportOptions: { columns: ':visible' } },
+                { extend: 'pdf', text: '<i class="fas fa-file-pdf me-1"></i> PDF', className: 'btn btn-sm', exportOptions: { columns: ':visible' } },
+                { extend: 'print', text: '<i class="fas fa-print me-1"></i> Imprimir', className: 'btn btn-sm', exportOptions: { columns: ':visible' } }
+            ],
+            order: [[0, 'desc']],
+            columns: [
+                { data: 'nome', name: 'origens.nome' },
+                { data: 'acoes', orderable: false, searchable: false }
+            ],
+            language: { url: '/js/pt-BR.json' }, // Certifique-se que este arquivo existe
+            responsive: true,
+            // Adicione o evento drawCallback para inicializar os tooltips
+            drawCallback: function (settings) {
+                // Inicializa todos os tooltips na tabela que ainda não foram inicializados
+                const tooltipTriggerList = [].slice.call(this.api().table().body().querySelectorAll('[data-bs-toggle="tooltip"]'));
+                tooltipTriggerList.map(function (tooltipTriggerEl) {
+                    // Verifica se já não existe uma instância de tooltip para evitar múltiplas inicializações
+                    if (!bootstrap.Tooltip.getInstance(tooltipTriggerEl)) {
+                        return new bootstrap.Tooltip(tooltipTriggerEl);
+                    }
+                });
+
+                // Adicional: Se você quiser que os botões de modal DENTRO da tabela também tenham tooltips
+                // e eles só têm data-bs-title (sem data-bs-toggle="tooltip")
+                const modalButtonsInTableWithTitle = [].slice.call(this.api().table().body().querySelectorAll('[data-bs-toggle="modal"][data-bs-title]'));
+                modalButtonsInTableWithTitle.map(function (modalButtonEl) {
+                    if (!bootstrap.Tooltip.getInstance(modalButtonEl)) {
+                        new bootstrap.Tooltip(modalButtonEl);
+                    }
+                });
+            }
+        });
+
+        // NOVO: Submissão do formulário de NOVO origem
+        $formularioNovoOrigem.on('submit', function (e) {
+            e.preventDefault();
+            const formAtual = this;
+            if (!formAtual.checkValidity()) {
+                formAtual.reportValidity();
+                return;
+            }
+
+            const urlAcaoForm = $(formAtual).attr('action'); // Vem do HTML: {{ route('origens.store') }}
+            const dadosForm = $(formAtual).serialize();
+
+            $.ajax({
+                url: urlAcaoForm,
+                type: 'POST',
+                data: dadosForm,
+                headers: { 'X-CSRF-TOKEN': $(formAtual).find('input[name="_token"]').val() },
+                success: function (resposta) {
+                    alert(resposta.message || 'Origem salvo com sucesso!');
+                    if ($modalNovoOrigem.length) {
+                        const instanciaModal = bootstrap.Modal.getInstance($modalNovoOrigem[0]);
+                        if (instanciaModal) instanciaModal.hide();
+                    }
+                    if (tabelaOrigensRef) tabelaOrigensRef.ajax.reload();
+                    formAtual.reset(); // Limpa o formulário
+                },
+                error: function (xhr) {
+                    console.error('Erro ao salvar nova origem:', xhr);
+                    let msgErro = 'Erro ao salvar a origem.';
+                    if (xhr.responseJSON) {
+                        if (xhr.responseJSON.message) msgErro += `\n${xhr.responseJSON.message}`;
+                        if (xhr.responseJSON.errors) {
+                            Object.values(xhr.responseJSON.errors).forEach(erros => msgErro += `\n- ${erros.join(', ')}`);
+                        }
+                    }
+                    alert(msgErro);
+                }
+            });
+        });
+
+
+        // Submissão do formulário de edição de origem (já existente, mas revisado)
+        $formularioEditarOrigem.on('submit', function (e) {
+            e.preventDefault();
+            const formAtual = this;
+            if (!formAtual.checkValidity()) {
+                formAtual.reportValidity();
+                return;
+            }
+
+            const urlAcaoForm = $(formAtual).attr('action'); // Dinamicamente setado ao abrir modal
+            const dadosForm = $(formAtual).serialize(); // Inclui _method=PUT
+
+            $.ajax({
+                url: urlAcaoForm,
+                type: 'POST', // Laravel usa POST com _method para PUT/PATCH
+                data: dadosForm,
+                headers: { 'X-CSRF-TOKEN': $(formAtual).find('input[name="_token"]').val() },
+                success: function (resposta) {
+                    alert(resposta.mensagem || 'Origem atualizado com sucesso!');
+                    if ($modalEditarOrigem.length) {
+                        const instanciaModal = bootstrap.Modal.getInstance($modalEditarOrigem[0]);
+                        if (instanciaModal) instanciaModal.hide();
+                    }
+                    if (tabelaOrigensRef) tabelaOrigensRef.ajax.reload();
+                },
+                error: function (xhr) {
+                    console.error('Erro ao editar origem:', xhr);
+                    let msgErro = 'Erro ao atualizar a origem.';
+                    if (xhr.responseJSON) {
+                        if (xhr.responseJSON.message) msgErro += `\n${xhr.responseJSON.message}`;
+                        if (xhr.responseJSON.errors) {
+                            Object.values(xhr.responseJSON.errors).forEach(erros => msgErro += `\n- ${erros.join(', ')}`);
+                        }
+                    }
+                    alert(msgErro);
+                }
+            });
+        });
+
+        // Preenche e exibe modal de edição de origem (já existente, mas revisado)
+        $(document).on('click', '.btn-edit-origem', function () { // CLASSE MAIS ESPECÍFICA
+            const idOrigem = $(this).data('id');
+            const nomeOrigem = $(this).data('name');
+
+            // ATUALIZADO: Garante que a rota de update da origem exista
+            const urlUpdateOrigem = (typeof origensUpdateRouteBase !== 'undefined')
+                ? origensUpdateRouteBase.replace(':id', idOrigem)
+                : `/origens/${idOrigem}`;
+            $formularioEditarOrigem.attr('action', urlUpdateOrigem);
+
+            $formularioEditarOrigem.find('#edit_id').val(idOrigem);
+            $formularioEditarOrigem.find('#edit_name').val(nomeOrigem);
+
+            if ($modalEditarOrigem.length) {
+                const instanciaModalEdicao = new bootstrap.Modal($modalEditarOrigem[0]);
+                instanciaModalEdicao.show();
+            }
+        });
+
+        // Exclusão de Origem
+        $(document).on('click', '.btn-delete-origem', function () { // CLASSE MAIS ESPECÍFICA
+            const idOrigem = $(this).data('id');
+            const nomeOrigem = $(this).data('name'); // Para mensagem de confirmação
+
+            // ATUALIZADO: Garante que a rota de delete da origem exista
+            const urlDeleteOrigem = (typeof origensDestroyRouteBase !== 'undefined')
+                ? origensDestroyRouteBase.replace(':id', idOrigem)
+                : `/origens/${idOrigem}`;
+
+            if (confirm(`Tem certeza que deseja excluir a origem "${nomeOrigem || idOrigem}"?`)) {
+                $.ajax({
+                    url: urlDeleteOrigem,
+                    type: 'POST',
+                    data: {
+                        _method: 'DELETE',
+                        _token: $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function (resposta) {
+                        alert(resposta.message || 'Origem excluído com sucesso.');
+                        if (tabelaOrigensRef) tabelaOrigensRef.ajax.reload();
+                    },
+                    error: function (xhr) {
+                        alert('Erro ao excluir a origem: ' + (xhr.responseJSON?.message || xhr.statusText));
                     }
                 });
             }

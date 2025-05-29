@@ -4,9 +4,10 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\CadastroController;
 use App\Http\Controllers\AtendentesController;
-use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\OrigemController;
 use App\Http\Controllers\SerieController;
 use App\Http\Controllers\ObservacaoController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Auth\LogoutController;
 
 // Página inicial (dashboard principal do sistema)
@@ -38,6 +39,16 @@ Route::middleware(['auth'])->group(function () {
         // Rotas extras de atendentes com nomes explícitos
         Route::get('/listar', [AtendentesController::class, 'listar'])->name('listar');
     });
+
+    // Grupo de rotas para 'origens'
+    Route::prefix('origens')->name('origens.')->group(function () {
+        // Rotas do recurso CRUD de origens (exceto 'create', 'show')
+        Route::resource('/', OrigemController::class)->except(['create', 'show'])->parameters(['' => 'origem']);
+
+        // Rotas extras de origens com nomes explícitos
+        Route::get('/listar', [OrigemController::class, 'listar'])->name('listar');
+    });
+
 
     // Rotas de perfil
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
