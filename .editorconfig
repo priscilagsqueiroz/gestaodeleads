@@ -1,18 +1,44 @@
+# Raiz do projeto
 root = true
 
+# Regras padrão para todos os arquivos
 [*]
 charset = utf-8
 end_of_line = lf
-indent_size = 4
-indent_style = space
 insert_final_newline = true
 trim_trailing_whitespace = true
 
+# Regras específicas para arquivos PHP
+[*.php]
+indent_style = unset
+indent_size = unset
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+# Regras específicas para Markdown (não limpa espaços em branco)
 [*.md]
 trim_trailing_whitespace = false
+insert_final_newline = true
 
+# Regras específicas para YAML/YML
 [*.{yml,yaml}]
-indent_size = 2
-
-[docker-compose.yml]
+indent_style = space
 indent_size = 4
+insert_final_newline = true
+
+# Regras para arquivos JSON
+[*.json]
+indent_style = space
+indent_size = 4
+
+# Regras para arquivos JS/TS
+[*.{js,ts}]
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+
+# Regras para arquivos HTML/CSS
+[*.{html,css}]
+indent_style = space
+indent_size = 4
+insert_final_newline = true

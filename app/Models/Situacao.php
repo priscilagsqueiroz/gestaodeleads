@@ -9,5 +9,6 @@ class Situacao extends Model
 {
     use HasFactory;
     protected $table = 'tb_situacao';
-    protected $fillable = ['nome'];
+    protected $fillable = ['nome', 'legenda'];
+    public $timestamps = false; // Adicione esta linha
 }

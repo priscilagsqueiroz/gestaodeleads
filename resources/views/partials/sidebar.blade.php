@@ -13,17 +13,17 @@
         </li>
         <li>
             <a href="{{ route('cadastros.index') }}" class="{{ request()->routeIs('cadastros.index') || request()->is('cadastros/*') ? 'active link-underline link-underline-opacity-0' : 'link-underline link-underline-opacity-0' }}">
-                <i class="fas fa-chart-line"></i> Cadastros
+                <i class="fa-solid fa-list"></i> Cadastros
             </a>
         </li>
         <li>
-            <a href="#">
-                <i class="fas fa-users"></i> Users
+            <a href="{{ route('origens.index') }}" class="{{ request()->routeIs('origens.index') || request()->is('origens/*') ? 'active link-underline link-underline-opacity-0' : 'link-underline link-underline-opacity-0' }}">
+                <i class="fa-solid fa-bullseye"></i> Origens
             </a>
         </li>
         <li>
-            <a href="#">
-                <i class="fas fa-shopping-cart"></i> Products
+            <a href="{{ route('situacoes.index') }}" class="{{ request()->routeIs('situacoes.index') || request()->is('situacoes/*') ? 'active link-underline link-underline-opacity-0' : 'link-underline link-underline-opacity-0' }}">
+                <i class="fa-solid fa-circle-check"></i> Situações
             </a>
         </li>
         <li>

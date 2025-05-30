@@ -226,6 +226,7 @@ $(document).ready(function () {
     const $elementoTabelaCadastros = $('#cadastros-table');
     const $elementoTabelaAtendentes = $('#atendentesTable');
     const $elementoTabelaOrigens = $('#origemTable');
+    const $elementoTabelaSituacoes = $('#situacaoTable');
 
     // ATUALIZADO: IDs dos formulários de atendente
     const $modalNovoAtendente = $('#atendenteModal');
@@ -238,6 +239,12 @@ $(document).ready(function () {
     const $formularioNovoOrigem = $('#origemFormNovo');
     const $modalEditarOrigem = $('#origemFormEdit');
     const $formularioEditarOrigem = $('#editOrigemForm');
+
+    // ATUALIZADO: IDs dos formulários de situacao
+    const $modalNovoSituacao = $('#situacaoModal');
+    const $formularioNovoSituacao = $('#situacaoFormNovo');
+    const $modalEditarSituacao = $('#situacaoFormEdit');
+    const $formularioEditarSituacao = $('#editSituacaoForm');
 
     // Contadores para gerar IDs temporários no lado do cliente
     let contadorResponsaveis = 0;
@@ -1487,7 +1494,6 @@ $(document).ready(function () {
         });
     }
 
-    
     // --- DataTable e AJAX para Origens ---
     let tabelaOrigensRef;
     if ($elementoTabelaOrigens.length) {
@@ -1665,6 +1671,192 @@ $(document).ready(function () {
                     },
                     error: function (xhr) {
                         alert('Erro ao excluir a origem: ' + (xhr.responseJSON?.message || xhr.statusText));
+                    }
+                });
+            }
+        });
+    }
+    
+    // --- DataTable e AJAX para Situacoes ---
+    let tabelaSituacoesRef;
+    if ($elementoTabelaSituacoes.length) {
+        tabelaSituacoesRef = $elementoTabelaSituacoes.DataTable({
+            processing: true,
+            serverSide: true,
+            responsive: true,
+            ajax: {
+                url: typeof situacoesListarRoute !== 'undefined' ? situacoesListarRoute : '/situacoes/listar',
+                error: function (xhr, error, thrown) {
+                    console.error("Erro no AJAX da DataTable de Situacoes:", xhr.responseText);
+                    console.log("XHR Object:", xhr); // Informações detalhadas do erro
+                    console.log("Error string:", error);
+                    console.log("Thrown error:", thrown);
+                    alert("Erro ao carregar a lista de situações. Verifique o console para mais detalhes.");
+                }
+            },
+            language: { url: '/js/pt-BR.json' },
+            dom: 'Bfrtip',
+            buttons: [
+                { extend: 'excel', text: '<i class="fas fa-file-excel me-1"></i> Excel', className: 'btn btn-sm', exportOptions: { columns: ':visible' } },
+                { extend: 'pdf', text: '<i class="fas fa-file-pdf me-1"></i> PDF', className: 'btn btn-sm', exportOptions: { columns: ':visible' } },
+                { extend: 'print', text: '<i class="fas fa-print me-1"></i> Imprimir', className: 'btn btn-sm', exportOptions: { columns: ':visible' } }
+            ],
+            order: [[0, 'desc']],
+            columns: [
+                { data: 'nome', name: 'situacoes.nome' },
+                { data: 'legenda', name: 'situacoes.legenda' },
+                { data: 'acoes', orderable: false, searchable: false }
+            ],
+            language: { url: '/js/pt-BR.json' }, // Certifique-se que este arquivo existe
+            responsive: true,
+            // Adicione o evento drawCallback para inicializar os tooltips
+            drawCallback: function (settings) {
+                // Inicializa todos os tooltips na tabela que ainda não foram inicializados
+                const tooltipTriggerList = [].slice.call(this.api().table().body().querySelectorAll('[data-bs-toggle="tooltip"]'));
+                tooltipTriggerList.map(function (tooltipTriggerEl) {
+                    // Verifica se já não existe uma instância de tooltip para evitar múltiplas inicializações
+                    if (!bootstrap.Tooltip.getInstance(tooltipTriggerEl)) {
+                        return new bootstrap.Tooltip(tooltipTriggerEl);
+                    }
+                });
+
+                // Adicional: Se você quiser que os botões de modal DENTRO da tabela também tenham tooltips
+                // e eles só têm data-bs-title (sem data-bs-toggle="tooltip")
+                const modalButtonsInTableWithTitle = [].slice.call(this.api().table().body().querySelectorAll('[data-bs-toggle="modal"][data-bs-title]'));
+                modalButtonsInTableWithTitle.map(function (modalButtonEl) {
+                    if (!bootstrap.Tooltip.getInstance(modalButtonEl)) {
+                        new bootstrap.Tooltip(modalButtonEl);
+                    }
+                });
+            }
+        });
+
+        // NOVO: Submissão do formulário de NOVO situacao
+        $formularioNovoSituacao.on('submit', function (e) {
+            e.preventDefault();
+            const formAtual = this;
+            if (!formAtual.checkValidity()) {
+                formAtual.reportValidity();
+                return;
+            }
+
+            const urlAcaoForm = $(formAtual).attr('action'); // Vem do HTML: {{ route('situacoes.store') }}
+            const dadosForm = $(formAtual).serialize();
+
+            $.ajax({
+                url: urlAcaoForm,
+                type: 'POST',
+                data: dadosForm,
+                headers: { 'X-CSRF-TOKEN': $(formAtual).find('input[name="_token"]').val() },
+                success: function (resposta) {
+                    alert(resposta.message || 'Situação salvo com sucesso!');
+                    if ($modalNovoSituacao.length) {
+                        const instanciaModal = bootstrap.Modal.getInstance($modalNovoSituacao[0]);
+                        if (instanciaModal) instanciaModal.hide();
+                    }
+                    if (tabelaSituacoesRef) tabelaSituacoesRef.ajax.reload();
+                    formAtual.reset(); // Limpa o formulário
+                },
+                error: function (xhr) {
+                    console.error('Erro ao salvar nova situação:', xhr);
+                    let msgErro = 'Erro ao salvar a situação.';
+                    if (xhr.responseJSON) {
+                        if (xhr.responseJSON.message) msgErro += `\n${xhr.responseJSON.message}`;
+                        if (xhr.responseJSON.errors) {
+                            Object.values(xhr.responseJSON.errors).forEach(erros => msgErro += `\n- ${erros.join(', ')}`);
+                        }
+                    }
+                    alert(msgErro);
+                }
+            });
+        });
+
+
+        // Submissão do formulário de edição de situacao (já existente, mas revisado)
+        $formularioEditarSituacao.on('submit', function (e) {
+            e.preventDefault();
+            const formAtual = this;
+            if (!formAtual.checkValidity()) {
+                formAtual.reportValidity();
+                return;
+            }
+
+            const urlAcaoForm = $(formAtual).attr('action'); // Dinamicamente setado ao abrir modal
+            const dadosForm = $(formAtual).serialize(); // Inclui _method=PUT
+
+            $.ajax({
+                url: urlAcaoForm,
+                type: 'POST', // Laravel usa POST com _method para PUT/PATCH
+                data: dadosForm,
+                headers: { 'X-CSRF-TOKEN': $(formAtual).find('input[name="_token"]').val() },
+                success: function (resposta) {
+                    alert(resposta.mensagem || 'Situação atualizado com sucesso!');
+                    if ($modalEditarSituacao.length) {
+                        const instanciaModal = bootstrap.Modal.getInstance($modalEditarSituacao[0]);
+                        if (instanciaModal) instanciaModal.hide();
+                    }
+                    if (tabelaSituacoesRef) tabelaSituacoesRef.ajax.reload();
+                },
+                error: function (xhr) {
+                    console.error('Erro ao editar situação:', xhr);
+                    let msgErro = 'Erro ao atualizar a situação.';
+                    if (xhr.responseJSON) {
+                        if (xhr.responseJSON.message) msgErro += `\n${xhr.responseJSON.message}`;
+                        if (xhr.responseJSON.errors) {
+                            Object.values(xhr.responseJSON.errors).forEach(erros => msgErro += `\n- ${erros.join(', ')}`);
+                        }
+                    }
+                    alert(msgErro);
+                }
+            });
+        });
+
+        // Preenche e exibe modal de edição de situacao (já existente, mas revisado)
+        $(document).on('click', '.btn-edit-situacao', function () { // CLASSE MAIS ESPECÍFICA
+            const idSituacao = $(this).data('id');
+            const nomeSituacao = $(this).data('name');
+            const legendaSituacao = $(this).data('legenda');
+
+            // ATUALIZADO: Garante que a rota de update da situação exista
+            const urlUpdateSituacao = (typeof situacoesUpdateRouteBase !== 'undefined')
+                ? situacoesUpdateRouteBase.replace(':id', idSituacao)
+                : `/situacoes/${idSituacao}`;
+            $formularioEditarSituacao.attr('action', urlUpdateSituacao);
+
+            $formularioEditarSituacao.find('#edit_id').val(idSituacao);
+            $formularioEditarSituacao.find('#edit_name').val(nomeSituacao);
+            $formularioEditarSituacao.find('#edit_legenda').val(legendaSituacao);
+
+            if ($modalEditarSituacao.length) {
+                const instanciaModalEdicao = new bootstrap.Modal($modalEditarSituacao[0]);
+                instanciaModalEdicao.show();
+            }
+        });
+
+        // Exclusão de Situacao
+        $(document).on('click', '.btn-delete-situacao', function () { // CLASSE MAIS ESPECÍFICA
+            const idSituacao = $(this).data('id');
+            const nomeSituacao = $(this).data('name'); // Para mensagem de confirmação
+
+            // ATUALIZADO: Garante que a rota de delete da situação exista
+            const urlDeleteSituacao = (typeof situacoesDestroyRouteBase !== 'undefined')
+                ? situacoesDestroyRouteBase.replace(':id', idSituacao)
+                : `/situacoes/${idSituacao}`;
+
+            if (confirm(`Tem certeza que deseja excluir a situação "${nomeSituacao || idSituacao}"?`)) {
+                $.ajax({
+                    url: urlDeleteSituacao,
+                    type: 'POST',
+                    data: {
+                        _method: 'DELETE',
+                        _token: $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function (resposta) {
+                        alert(resposta.message || 'Situação excluído com sucesso.');
+                        if (tabelaSituacoesRef) tabelaSituacoesRef.ajax.reload();
+                    },
+                    error: function (xhr) {
+                        alert('Erro ao excluir a situação: ' + (xhr.responseJSON?.message || xhr.statusText));
                     }
                 });
             }
